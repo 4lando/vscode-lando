@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import * as child_process from "child_process";
 
+const CRLF = "\r\n";
+
 export function activate(context: vscode.ExtensionContext) {
   const writeEmitter = new vscode.EventEmitter<string>();
   context.subscriptions.push(
@@ -32,56 +34,31 @@ export function activate(context: vscode.ExtensionContext) {
       // Lando process output handling
       landoProcess.stdout.on("data", (data) => {
         // Terminal expects \r\n line endings
-        const output = data.toString().replace(/\n/g, "\r\n");
+        const output = data.toString().replace(/\n/g, CRLF);
         writeEmitter.fire(output);
       });
       landoProcess.stderr.on("data", (data) => {
         // Terminal expects \r\n line endings
-        const output = data.toString().replace(/\n/g, "\r\n");
+        const output = data.toString().replace(/\n/g, CRLF);
         writeEmitter.fire(output);
       });
 
       // Terminal pty implementation
-      let line = "";
       const pty = {
         onDidWrite: writeEmitter.event,
-        open: () => writeEmitter.fire(`Running: lando ${command}\r\n\n`),
+        open: () =>
+          writeEmitter.fire(`Running: lando ${command}${CRLF}${CRLF}`),
         close: () => {
           landoProcess.stdin.end();
         },
         handleInput: (data: string) => {
           landoProcess.stdin.write(data);
-          if (data === "\x7f") {
-            // Backspace
-            if (line.length === 0) {
-              return;
-            }
-            line = line.substr(0, line.length - 1);
-            // Move cursor backward
-            writeEmitter.fire("\x1b[D");
-            // Delete character
-            writeEmitter.fire("\x1b[P");
-            return;
-          }
           if (data === "\x03") {
             // Ctrl+C
             writeEmitter.fire("^C");
             landoProcess.kill("SIGINT");
             return;
           }
-          if (data === "\x1b[A") {
-            // Up arrow
-            return;
-          }
-          if (data === "\x1b[B") {
-            // Down arrow
-            return;
-          }
-          if (data === "\x1b[C") {
-            // Right arrow
-            return;
-          }
-          writeEmitter.fire(data);
         },
       };
       const terminal = vscode.window.createTerminal({
