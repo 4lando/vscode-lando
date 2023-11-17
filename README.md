@@ -18,6 +18,8 @@ An initial release will be published when the following features are implemented
 
 Planned features for subsequent releases:
 - [ ] Automatic detection of available Lando commands and tooling
+- [ ] Automaticly apply settings to VSCode and its extensions based on the Lando app details
+- [ ] Lando app creation wizard (GUI for lando init)
 - [ ] Lando app management from the command palette
 - [ ] Easy access to Lando documentation
 - [ ] Execute relevant Lando commands from the context menu
@@ -26,4 +28,6 @@ Planned features for subsequent releases:
 - [ ] Support for editing Lando's global configuration
 - [ ] Built-in plugin manager for Lando
 - [ ] Full GUI integration of all Lando features
+- [ ] Integration with other Lando tools and plugins (e.g. Pantheon, Acquia, Drupal, etc.)
+
 
