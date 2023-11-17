@@ -68,6 +68,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       terminal.show();
 
+      // Do things when the Lando process exits
       landoProcess.on("close", (code) => {
         if (code !== 0) {
           writeEmitter.fire(
