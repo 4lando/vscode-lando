@@ -18,6 +18,8 @@ An initial release will be published when the following features are implemented
 
 Planned features for subsequent releases:
 - [ ] Automatic detection of available Lando commands and tooling
+- [ ] Automatic Xdebug configuration for Lando apps
+- [ ] Remote php interpreter (VSCode uses the PHP version from the Lando app)
 - [ ] Automaticly apply settings to VSCode and its extensions based on the Lando app details
 - [ ] Lando app creation wizard (GUI for lando init)
 - [ ] Lando app management from the command palette
@@ -29,5 +31,8 @@ Planned features for subsequent releases:
 - [ ] Built-in plugin manager for Lando
 - [ ] Full GUI integration of all Lando features
 - [ ] Integration with other Lando tools and plugins (e.g. Pantheon, Acquia, Drupal, etc.)
+- [ ] Detection of common Lando issues and suggestions for resolution
+- [ ] Lando app templates and presets
+- [ ] Advanced filtering and searching of Lando logs
 
 
