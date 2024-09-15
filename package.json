@@ -2,39 +2,57 @@
   "name": "vscode-lando",
   "displayName": "Lando",
   "description": "Lando integration for Visual Studio Code",
-  "version": "0.0.1",
   "publisher": "4lando",
   "author": {
     "name": "Aaron Feledy"
   },
+  "version": "0.0.1",
+  "repository": "https://github.com/4lando/vscode-lando",
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.91.0"
   },
   "categories": [
     "Other"
   ],
   "activationEvents": [],
   "main": "./out/extension.js",
+  "extensionDependencies": [
+    "redhat.vscode-yaml"
+  ],
   "contributes": {
     "commands": [
       {
         "command": "extension.runLando",
         "title": "Run Lando Command"
       }
-    ]
+    ],
+    "configurationDefaults": {
+      "yaml.schemas": {
+        "https://4lando.github.io/lando-spec/landofile-spec.json": [
+          ".lando.yml",
+          ".lando.*.yml"
+        ]
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "lint": "eslint \"src/**/*.ts\"",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/node": "^16.18.34",
-    "@types/vscode": "^1.73.0",
-    "@typescript-eslint/eslint-plugin": "^6.7.0",
-    "@typescript-eslint/parser": "^6.7.0",
-    "eslint": "^8.26.0",
-    "typescript": "^5.2.2"
+    "@types/mocha": "^10.0.7",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.91.0",
+    "@typescript-eslint/eslint-plugin": "^7.14.1",
+    "@typescript-eslint/parser": "^7.11.0",
+    "@vscode/test-cli": "^0.0.9",
+    "@vscode/test-electron": "^2.4.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.5",
+    "vscode-yaml": "^0.13.0"
   }
 }
