@@ -12,8 +12,16 @@
         "@typescript-eslint/naming-convention": [
             "warn",
             {
-                "selector": "import",
+                "selector": "default",
                 "format": [ "camelCase", "PascalCase" ]
+            },
+            {
+                "selector": "import",
+                "format": [ "camelCase", "PascalCase", "snake_case" ]
+            },
+            {
+                "selector": "property",
+                "format": [ "camelCase", "PascalCase", "UPPER_CASE" ]
             }
         ],
         "@typescript-eslint/semi": "warn",
