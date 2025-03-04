@@ -8,6 +8,7 @@
   },
   "version": "0.0.1",
   "repository": "https://github.com/4lando/vscode-lando",
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.91.0"
   },
