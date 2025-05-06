@@ -1,0 +1,20 @@
+#!/bin/bash
+# Lando PHP Wrapper Script
+# This script redirects PHP calls to a Lando Docker container
+# Environment variables:
+#   VSCODE_LANDO_PHP_CONTAINER - The Docker container name
+#   VSCODE_LANDO_EXEC_CWD - The working directory inside the container
+
+# Check if required environment variables are set
+if [ -z "$VSCODE_LANDO_PHP_CONTAINER" ]; then
+    echo "Error: VSCODE_LANDO_PHP_CONTAINER environment variable is not set" >&2
+    exit 1
+fi
+
+if [ -z "$VSCODE_LANDO_EXEC_CWD" ]; then
+    echo "Error: VSCODE_LANDO_EXEC_CWD environment variable is not set" >&2
+    exit 1
+fi
+
+# Execute PHP in the Lando container
+docker exec -i "$VSCODE_LANDO_PHP_CONTAINER" bash -c "cd '$VSCODE_LANDO_EXEC_CWD' && php $*"

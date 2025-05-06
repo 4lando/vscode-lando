@@ -1,31 +1,45 @@
 # Lando Extension for Visual Studio Code
 
-Seamlessly integrate [Lando](https://lando.dev) local development environments with Visual Studio Code. Execute Lando commands directly from your editor with integrated terminal support and intelligent `.lando.yml` file validation.
+Seamlessly integrate [Lando](https://lando.dev) local development environments with Visual Studio Code. Execute Lando commands, automatically configure PHP interpreters, and get intelligent `.lando.yml` file validation - all from within your editor.
 
 > **Note**: This extension is currently in development and not yet published to the Visual Studio Code Marketplace.
 
 ## Features
 
 ### ✅ Current Features
-- **🚀 Command Execution**: Run any Lando command directly from the Command Palette (`Ctrl+Shift+P` → "Run Lando Command")
-- **💻 Integrated Terminal**: Execute Lando commands in a dedicated VS Code terminal with full color support and interactive input
-- **📝 YAML Schema Validation**: Automatic syntax validation and IntelliSense for `.lando.yml` and `.lando.*.yml` files
-- **⚡ Real-time Output**: Live command output with proper ANSI color rendering and Ctrl+C interrupt support
 
-### 🔜 Planned Features (Initial Release)
-- [ ] Automatic Lando app detection in workspace
-- [ ] App status monitoring and quick start/stop/restart actions
+#### 🚀 **Lando Command Execution**
+- Run any Lando command directly from the Command Palette (`Ctrl+Shift+P` → "Run Lando Command")
+- Integrated terminal with full color support and interactive input
+- Real-time output with proper ANSI color rendering and Ctrl+C interrupt support
+
+#### 🐘 **Automatic PHP Integration**
+- **Auto-detection**: Automatically detects Lando apps on workspace open
+- **Smart Startup**: Optionally auto-starts Lando apps or prompts user to start
+- **PHP Interpreter**: Seamlessly configures VS Code to use PHP from Lando containers
+- **Terminal Integration**: Automatically sets up PHP aliases in new terminals
+- **Task Interception**: Automatically redirects PHP commands in VS Code tasks to use Lando
+
+#### ⚙️ **Configuration & Management**
+- **Status Monitoring**: Check if Lando apps are running
+- **Environment Setup**: Easily configure PHP environment in active terminals
+- **Settings Restoration**: Automatically restores original PHP settings on deactivation
+- **Cross-platform**: Works on Windows, macOS, and Linux
+
+#### 📝 **YAML Schema Validation**
+- Automatic syntax validation and IntelliSense for `.lando.yml` and `.lando.*.yml` files
+- Powered by the community-maintained [Lando Schema Specification](https://github.com/4lando/lando-spec)
+
+### 🔜 Planned Features
 - [ ] Quick access to app URLs (copy to clipboard or open in browser)
 - [ ] Integrated log viewer with filtering
 - [ ] Enhanced `.lando.yml` editing with hints and autocompletion
-- []
+- [ ] Multi-workspace and multi-app support
 
 ### 🚀 Future Roadmap
 - Automatic Xdebug configuration
-- Remote PHP interpreter integration
 - App creation wizard (GUI for `lando init`)
 - Context menu integration for common tasks
-- Multi-workspace and multi-app support
 - Integration with hosting platforms (Pantheon, Acquia, etc.)
 
 ## Installation
@@ -41,19 +55,31 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 
 ## Usage
 
-### Running Lando Commands
+### Automatic PHP Integration
 1. Open a workspace containing a Lando app (with `.lando.yml`)
-2. Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
-3. Type "Run Lando Command" and select it
-4. Enter your Lando command (e.g., `start`, `stop`, `rebuild`, `ssh`)
-5. View the output in the integrated terminal
+2. The extension will automatically:
+   - Detect your Lando app
+   - Check if it's running (and optionally start it)
+   - Configure VS Code to use PHP from the Lando container
+   - Set up PHP aliases in new terminals
+
+### Manual Commands
+Access these commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
+
+- **"Run Lando Command"** - Execute any Lando command interactively
+- **"Enable Lando PHP Interpreter"** - Manually enable PHP integration
+- **"Disable Lando PHP Interpreter"** - Restore original PHP settings
+- **"Set PHP Environment in Terminal"** - Configure PHP alias in active terminal
+- **"Check Lando Status"** - Check if your Lando app is running
+- **"Refresh PHP Configuration"** - Refresh PHP settings
+- **"Test PHP Wrapper"** - Test PHP integration in a new terminal
 
 ### YAML File Support
 The extension automatically provides schema validation for:
 - `.lando.yml`
 - `.lando.*.yml` (e.g., `.lando.local.yml`)
 
-IntelliSense and validation are powered by the the community maintained [Lando Schema Specification](https://github.com/4lando/lando-spec).
+IntelliSense and validation are powered by the community maintained [Lando Schema Specification](https://github.com/4lando/lando-spec).
 
 ## Requirements
 
@@ -63,15 +89,21 @@ IntelliSense and validation are powered by the the community maintained [Lando S
 
 ## Extension Settings
 
-This extension contributes the following settings:
+Configure the extension behavior in your VS Code settings:
 
-- Automatic YAML schema configuration for Lando files
-- Integration with the Red Hat YAML extension for enhanced editing experience
+```jsonc
+{
+  "lando.appMount": "/app",         // Working directory in container
+  "lando.autoStart": false,         // Auto-start Lando apps on activation
+  "lando.php.enabled": true,        // Enable/disable Lando PHP interpreter
+  "lando.php.service": "appserver", // Default PHP service name
+}
+```
 
 ## Known Issues
 
 - Currently supports single workspace/single Lando app setups
-- Multi-workspace support is planned for future releases
+- PHP command interception only works for shell-type tasks with direct PHP commands
 
 ## Contributing
 
@@ -85,14 +117,20 @@ This is an open-source project. Contributions are welcome!
 ### Testing
 - Install the Extension Test Runner extension
 - Run tests via the Testing view or `Ctrl+Cmd+; A`
+- Run `npm run test` to run tests
 
 ## Release Notes
 
 ### 0.0.1 (In Development)
-- Initial development release
-- Basic Lando command execution
-- Terminal integration with color support
-- YAML schema validation for Lando files
+- ✅ Lando command execution with terminal integration
+- ✅ YAML schema validation for Lando files
+- ✅ Automatic PHP interpreter configuration
+- ✅ Container-based PHP execution with Docker wrappers
+- ✅ Terminal auto-configuration with PHP aliases
+- ✅ Task interception for PHP commands
+- ✅ Lando app auto-detection and startup
+- ✅ Cross-platform support (Windows, macOS, Linux)
+- ✅ Comprehensive configuration options
 
 ## License
 
@@ -100,4 +138,4 @@ See [LICENSE](LICENSE) file for details.
 
 ---
 
-**Enjoy using Lando with Visual Studio Code!** 🎉
+**Enjoy seamless Lando development with Visual Studio Code!** 🎉🐳

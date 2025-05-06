@@ -15,7 +15,16 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "keywords": [
+    "lando",
+    "php",
+    "docker",
+    "drupal",
+    "ddev"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/.lando.yml"
+  ],
   "main": "./out/extension.js",
   "extensionDependencies": [
     "redhat.vscode-yaml"
@@ -25,8 +34,61 @@
       {
         "command": "extension.runLando",
         "title": "Run Lando Command"
+      },
+      {
+        "command": "extension.enablePhpInterpreter",
+        "title": "Enable Lando PHP Interpreter"
+      },
+      {
+        "command": "extension.disablePhpInterpreter",
+        "title": "Disable Lando PHP Interpreter"
+      },
+      {
+        "command": "extension.setPhpEnvironment",
+        "title": "Set PHP Environment in Terminal"
+      },
+      {
+        "command": "extension.checkLandoStatus",
+        "title": "Check Lando Status"
+      },
+      {
+        "command": "extension.refreshPhpConfig",
+        "title": "Refresh PHP Configuration"
+      },
+      {
+        "command": "extension.testPhpWrapper",
+        "title": "Test PHP Wrapper"
+      },
+      {
+        "command": "extension.checkPhpPlugins",
+        "title": "Check and Reload PHP Plugins"
       }
     ],
+    "configuration": {
+      "title": "Lando",
+      "properties": {
+        "lando.appMount": {
+          "type": "string",
+          "default": "/app",
+          "description": "The app directory inside the Lando container"
+        },
+        "lando.autoStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically start Lando apps"
+        },
+        "lando.php.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Lando PHP interpreter"
+        },
+        "lando.php.service": {
+          "type": "string",
+          "default": "appserver",
+          "description": "The Lando service used for PHP execution"
+        }
+      }
+    },
     "configurationDefaults": {
       "yaml.schemas": {
         "https://4lando.github.io/lando-spec/landofile-spec.json": [
