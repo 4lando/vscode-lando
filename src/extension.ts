@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import * as child_process from "child_process";
+import * as childProcess from 'child_process';
 import * as path from "path";
 import * as fs from "fs";
 
@@ -154,7 +154,7 @@ async function checkLandoStatus(
     const command = `lando list --format=json --filter='app=${cleanAppName}'`;
     
     outputChannel.appendLine(`Checking Lando status: ${command}`);
-    const result = child_process.execSync(command, {
+    const result = childProcess.execSync(command, {
       cwd: workspaceFolder,
       encoding: "utf8",
       timeout: 10000,
@@ -186,7 +186,7 @@ async function startLando(
   return new Promise((resolve) => {
     outputChannel.appendLine("Starting Lando...");
     
-    const landoProcess = child_process.spawn("lando", ["start"], {
+    const landoProcess = childProcess.spawn("lando", ["start"], {
       cwd: workspaceFolder,
       stdio: "pipe",
     });
@@ -194,20 +194,20 @@ async function startLando(
     let output = "";
     let hasError = false;
 
-    landoProcess.stdout.on("data", (data) => {
+    landoProcess.stdout.on("data", (data: Buffer) => {
       const message = data.toString();
       output += message;
       outputChannel.appendLine(`Lando output: ${message.trim()}`);
     });
 
-    landoProcess.stderr.on("data", (data) => {
+    landoProcess.stderr.on("data", (data: Buffer) => {
       const message = data.toString();
       output += message;
       outputChannel.appendLine(`Lando error: ${message.trim()}`);
       hasError = true;
     });
 
-    landoProcess.on("close", (code) => {
+    landoProcess.on("close", (code: number) => {
       outputChannel.appendLine(`Lando process exited with code ${code}`);
       
       if (code === 0 && !hasError) {
@@ -218,7 +218,7 @@ async function startLando(
       }
     });
 
-    landoProcess.on("error", (error) => {
+    landoProcess.on("error", (error: Error) => {
       outputChannel.appendLine(`Error starting Lando: ${error.message}`);
       resolve(false);
     });
@@ -350,12 +350,20 @@ async function overridePhpExecutablePath(
   const originalExecutablePath = config.inspect("executablePath")?.workspaceValue;
   const originalValidatePath = config.inspect("validate.executablePath")?.workspaceValue;
   const originalDebugPath = config.inspect("debug.executablePath")?.workspaceValue;
+
+  outputChannel.appendLine(`Original executablePath: ${originalExecutablePath}`);
+  outputChannel.appendLine(`Original validateExecutablePath: ${originalValidatePath}`);
+  outputChannel.appendLine(`Original debugExecutablePath: ${originalDebugPath}`);
   
   // Update settings.json in Workspace
   await config.update("executablePath", phpWrapperPath, vscode.ConfigurationTarget.Workspace);
   await config.update("validate.executablePath", phpWrapperPath, vscode.ConfigurationTarget.Workspace);
   await config.update("debug.executablePath", phpWrapperPath, vscode.ConfigurationTarget.Workspace);
   
+  outputChannel.appendLine(`Set executablePath to: ${phpWrapperPath}`);
+  outputChannel.appendLine(`Set validate.executablePath to: ${phpWrapperPath}`);
+  outputChannel.appendLine(`Set debug.executablePath to: ${phpWrapperPath}`);
+
   // Add extension bin directory to PATH
   const binDir = path.dirname(phpWrapperPath);
   const originalPath = process.env.PATH || "";
@@ -392,8 +400,13 @@ export function activate(context: vscode.ExtensionContext) {
   // Get the workspace folder path
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   
+  // Register basic commands even if no workspace folder is found
+  registerBasicCommands(context);
+
   if (!workspaceFolder) {
     outputChannel.appendLine("No workspace folder found");
+    // Register basic commands when no workspace folder is found
+    registerBasicCommands(context);
     return;
   }
 
@@ -403,7 +416,7 @@ export function activate(context: vscode.ExtensionContext) {
   const landoFile = path.join(workspaceFolder, ".lando.yml");
   if (!fs.existsSync(landoFile)) {
     outputChannel.appendLine(".lando.yml not found - PHP integration will not activate");
-    // Still register basic commands even without .lando.yml
+    // Register basic commands when no .lando.yml is found
     registerBasicCommands(context);
     return;
   }
@@ -489,7 +502,7 @@ function registerRunLandoCommand(
       }
 
       // Start Lando process
-      const landoProcess = child_process.spawn("lando", command.split(" "), {
+      const landoProcess = childProcess.spawn("lando", command.split(" "), {
         cwd: cwd,
         shell: false,
         env: { ...process.env, TERM: "xterm-256color", FORCE_COLOR: "true" },
@@ -497,12 +510,12 @@ function registerRunLandoCommand(
       });
 
       // Lando process output handling
-      landoProcess.stdout.on("data", (data) => {
+      landoProcess.stdout.on("data", (data: Buffer) => {
         // Terminal expects \r\n line endings
         const output = data.toString().replace(/\n/g, CRLF);
         writeEmitter.fire(output);
       });
-      landoProcess.stderr.on("data", (data) => {
+      landoProcess.stderr.on("data", (data: Buffer) => {
         // Terminal expects \r\n line endings
         const output = data.toString().replace(/\n/g, CRLF);
         writeEmitter.fire(output);
@@ -534,7 +547,7 @@ function registerRunLandoCommand(
       terminal.show();
 
       // Do things when the Lando process exits
-      landoProcess.on("close", (code) => {
+      landoProcess.on("close", (code: number) => {
         if (code !== 0) {
           writeEmitter.fire(
             `\x1b[31mLando process exited with code ${code}\x1b[0m\r\n`
@@ -854,6 +867,10 @@ async function restoreOriginalPhpSettings(): Promise<void> {
   if (originalPhpSettings) {
     const config = vscode.workspace.getConfiguration("php");
     
+    outputChannel.appendLine(`Restoring executablePath to: ${originalPhpSettings.executablePath}`);
+    outputChannel.appendLine(`Restoring validateExecutablePath to: ${originalPhpSettings.validateExecutablePath}`);
+    outputChannel.appendLine(`Restoring debugExecutablePath to: ${originalPhpSettings.debugExecutablePath}`);
+
     if (originalPhpSettings.executablePath !== undefined) {
       await config.update(
         "executablePath",

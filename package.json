@@ -86,6 +86,11 @@
           "type": "string",
           "default": "appserver",
           "description": "The Lando service used for PHP execution"
+        },
+        "lando.php.reloadPlugins": {
+          "type": "boolean",
+          "default": true,
+          "description": "Reload PHP plugins after Lando commands"
         }
       }
     },
@@ -101,24 +106,30 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "lint": "eslint \"src/**/*.ts\"",
+    "lint": "eslint src",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "test": "vscode-test"
+    "pretest": "npm run lint && npm run compile",
+    "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.7",
-    "@types/node": "20.x",
-    "@types/sinon": "^17.0.3",
-    "@types/vscode": "^1.91.0",
-    "@typescript-eslint/eslint-plugin": "^7.14.1",
-    "@typescript-eslint/parser": "^7.11.0",
-    "@vscode/test-cli": "^0.0.9",
-    "@vscode/test-electron": "^2.4.0",
-    "eslint": "^8.57.0",
-    "mocha": "^11.1.0",
-    "sinon": "^19.0.2",
-    "typescript": "^5.4.5",
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.17.32",
+    "@types/sinon": "^17.0.4",
+    "@types/vscode": "^1.99.1",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.25.1",
+    "mocha": "^11.2.2",
+    "sinon": "^20.0.0",
+    "typescript": "^5.8.2",
     "vscode-yaml": "^0.13.0"
+  },
+  "dependencies": {
+    "@types/minimatch": "^5.1.2",
+    "glob": "^11.0.2",
+    "minimatch": "^10.0.1"
   }
 }
