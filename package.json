@@ -8,7 +8,7 @@
   },
   "version": "0.0.1",
   "repository": "https://github.com/4lando/vscode-lando",
-  "icon": "icon.png",
+  "icon": "resources/icon.png",
   "engines": {
     "vscode": "^1.91.0"
   },
@@ -104,11 +104,13 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "vscode:prepublish": "npm run build",
+    "prebuild": "rm -rf out",
+    "build": "tsc -p ./",
     "lint": "eslint src",
+    "prewatch": "rm -rf out",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run lint && npm run compile",
+    "pretest": "npm run lint && npm run build",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
