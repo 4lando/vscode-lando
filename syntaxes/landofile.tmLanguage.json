@@ -1,0 +1,253 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Landofile",
+    "scopeName": "source.yaml.landofile",
+    "fileTypes": [
+        ".lando.yml",
+        ".lando.*.yml"
+    ],
+    "patterns": [
+        {
+            "include": "#lando-shell-commands"
+        },
+        {
+            "include": "source.yaml"
+        }
+    ],
+    "repository": {
+        "lando-shell-commands": {
+            "patterns": [
+                {
+                    "include": "#shell-block-sequence"
+                },
+                {
+                    "include": "#shell-flow-sequence"
+                },
+                {
+                    "include": "#tooling-cmd"
+                }
+            ]
+        },
+        "shell-block-sequence": {
+            "comment": "Block sequence (array) of shell commands for build, run, cmd keys",
+            "begin": "(?x)^(\\s*)(build|run|cmd)(:)\\s*$",
+            "beginCaptures": {
+                "2": {
+                    "name": "entity.name.tag.yaml"
+                },
+                "3": {
+                    "name": "punctuation.separator.key-value.mapping.yaml"
+                }
+            },
+            "end": "(?x)^(?=\\s*$|\\s*[a-zA-Z_][a-zA-Z0-9_-]*\\s*:)",
+            "name": "meta.block-sequence.landofile",
+            "patterns": [
+                {
+                    "include": "source.yaml#block-sequence"
+                },
+                {
+                    "begin": "(?<=-)\\s*",
+                    "end": "$",
+                    "contentName": "meta.embedded.line.shell",
+                    "patterns": [
+                        {
+                            "include": "source.shell#typical_statements"
+                        }
+                    ]
+                }
+            ]
+        },
+        "shell-flow-sequence": {
+            "comment": "Flow sequence [cmd1, cmd2] of shell commands",
+            "begin": "(?x)^(\\s*)(build|run|cmd)(:)\\s*(\\[)",
+            "beginCaptures": {
+                "2": {
+                    "name": "entity.name.tag.yaml"
+                },
+                "3": {
+                    "name": "punctuation.separator.key-value.mapping.yaml"
+                },
+                "4": {
+                    "name": "punctuation.definition.sequence.begin.yaml"
+                }
+            },
+            "end": "(\\])",
+            "endCaptures": {
+                "1": {
+                    "name": "punctuation.definition.sequence.end.yaml"
+                }
+            },
+            "name": "meta.flow-sequence.landofile",
+            "patterns": [
+                {
+                    "include": "source.yaml#flow-sequence"
+                },
+                {
+                    "begin": "(?<=[\\[,])\\s*([\"'])",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "punctuation.definition.string.begin.yaml"
+                        }
+                    },
+                    "end": "(\\1)",
+                    "endCaptures": {
+                        "1": {
+                            "name": "punctuation.definition.string.end.yaml"
+                        }
+                    },
+                    "contentName": "meta.embedded.line.shell",
+                    "patterns": [
+                        {
+                            "include": "source.shell#typical_statements"
+                        }
+                    ]
+                },
+                {
+                    "begin": "(?<=[\\[,])\\s*(?![\"'\\]])",
+                    "end": "(?=[,\\]])",
+                    "contentName": "meta.embedded.line.shell",
+                    "patterns": [
+                        {
+                            "include": "source.shell#typical_statements"
+                        }
+                    ]
+                }
+            ]
+        },
+        "tooling-cmd": {
+            "comment": "Landofile cmd: key",
+            "begin": "(?x)^(\\s*)(cmd)(:)(\\s*)",
+            "beginCaptures": {
+                "2": {
+                    "name": "entity.name.tag.yaml"
+                },
+                "3": {
+                    "name": "punctuation.separator.key-value.mapping.yaml"
+                }
+            },
+            "end": "(?=^\\s*\\S)|(?=^\\s*$)",
+            "name": "meta.tooling-cmd.landofile",
+            "patterns": [
+                {
+                    "include": "#shell-block-scalar"
+                },
+                {
+                    "include": "#shell-scalar"
+                }
+            ]
+        },
+        "shell-block-scalar": {
+            "comment": "Block scalar with shell commands for tooling cmd keys",
+            "begin": "\\s*(?:(\\|)|(>))([1-9])?([-+])?(.*\\n?)",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.control.flow.block-scalar.literal.yaml"
+                },
+                "2": {
+                    "name": "keyword.control.flow.block-scalar.folded.yaml"
+                },
+                "3": {
+                    "name": "constant.numeric.indentation-indicator.yaml"
+                },
+                "4": {
+                    "name": "storage.modifier.chomping-indicator.yaml"
+                },
+                "5": {
+                    "patterns": [
+                        {
+                            "include": "source.yaml#comment"
+                        },
+                        {
+                            "match": ".+",
+                            "name": "invalid.illegal.expected-comment-or-newline.yaml"
+                        }
+                    ]
+                }
+            },
+            "end": "^(?=\\S)|(?!\\G)",
+            "name": "meta.block-scalar.landofile",
+            "patterns": [
+                {
+                    "begin": "^([ ]+)(?! )",
+                    "end": "^(?!\\1|\\s*$)",
+                    "name": "meta.embedded.block.shell",
+                    "patterns": [
+                        {
+                            "include": "source.shell#typical_statements"
+                        }
+                    ]
+                }
+            ]
+        },
+        "shell-scalar": {
+            "name": "meta.shell-scalar.landofile",
+            "patterns": [
+                {
+                    "include": "#shell-scalar-double-quoted"
+                },
+                {
+                    "include": "#shell-scalar-single-quoted"
+                },
+                {
+                    "include": "#shell-scalar-plain"
+                }
+            ]
+        },
+        "shell-scalar-double-quoted": {
+            "comment": "Double-quoted shell scalar",
+            "begin": "\\s*(\")",
+            "beginCaptures": {
+                "1": {
+                    "name": "punctuation.definition.string.begin.yaml"
+                }
+            },
+            "end": "(\")",
+            "endCaptures": {
+                "1": {
+                    "name": "punctuation.definition.string.end.yaml"
+                }
+            },
+            "name": "meta.double-quoted.scalar.landofile",
+            "contentName": "meta.embedded.line.shell",
+            "patterns": [
+                {
+                    "include": "source.shell#typical_statements"
+                }
+            ]
+        },
+        "shell-scalar-single-quoted": {
+            "comment": "Single-quoted shell scalar",
+            "begin": "\\s*(')",
+            "beginCaptures": {
+                "1": {
+                    "name": "punctuation.definition.string.begin.yaml"
+                }
+            },
+            "end": "(')",
+            "endCaptures": {
+                "1": {
+                    "name": "punctuation.definition.string.end.yaml"
+                }
+            },
+            "name": "meta.single-quoted.scalar.landofile",
+            "contentName": "meta.embedded.line.shell",
+            "patterns": [
+                {
+                    "include": "source.shell#typical_statements"
+                }
+            ]
+        },
+        "shell-scalar-plain": {
+            "comment": "Plain shell scalar",
+            "begin": "(?=\\s*\\S)",
+            "end": "(?=^\\s*\\S)|(?=^\\s*$)|(?=\\s*#)",
+            "name": "meta.plain.scalar.landofile",
+            "contentName": "meta.embedded.line.shell",
+            "patterns": [
+                {
+                    "include": "source.shell#typical_statements"
+                }
+            ]
+        }
+    }
+}

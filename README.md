@@ -26,9 +26,11 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 - **Settings Restoration**: Automatically restores original PHP settings on deactivation
 - **Cross-platform**: Works on Windows, macOS, and Linux
 
-#### 📝 **YAML Schema Validation**
-- Automatic syntax validation and IntelliSense for `.lando.yml` and `.lando.*.yml` files
-- Powered by the community-maintained [Lando Schema Specification](https://github.com/4lando/lando-spec)
+#### 📝 **Enhanced Lando File Support**
+- **Smart YAML**: Enhanced `.lando.yml` file editing with bash syntax highlighting
+- **Schema Validation**: Automatic validation using the Lando Schema Specification
+- **IntelliSense**: Autocompletion and error detection for Lando configuration
+- **Shell Commands**: Shell commands in `build`, `run`, and `cmd` sections get proper highlighting
 
 ### 🔜 Planned Features
 - [ ] Quick access to app URLs (copy to clipboard or open in browser)
@@ -74,13 +76,6 @@ Access these commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 - **"Refresh PHP Configuration"** - Refresh PHP settings
 - **"Test PHP Wrapper"** - Test PHP integration in a new terminal
 
-### YAML File Support
-The extension automatically provides schema validation for:
-- `.lando.yml`
-- `.lando.*.yml` (e.g., `.lando.local.yml`)
-
-IntelliSense and validation are powered by the community maintained [Lando Schema Specification](https://github.com/4lando/lando-spec).
-
 ## Requirements
 
 - **Lando**: Must be installed and available in your system PATH
@@ -123,6 +118,7 @@ This is an open-source project. Contributions are welcome!
 
 ### 0.0.1 (In Development)
 - ✅ Lando command execution with terminal integration
+- ✅ Enhanced Landofile language with bash shell highlighting
 - ✅ YAML schema validation for Lando files
 - ✅ Automatic PHP interpreter configuration
 - ✅ Container-based PHP execution with Docker wrappers
