@@ -30,7 +30,7 @@ suite("Extension Test Suite", () => {
       const maxAttempts = 30;
       let attempts = 0;
       let commands: string[] = [];
-      
+
       // Check if we're in a workspace with .lando.yml
       const workspaceFolders = vscode.workspace.workspaceFolders;
       const hasLandoFile = workspaceFolders?.some(folder => {
@@ -47,7 +47,6 @@ suite("Extension Test Suite", () => {
       // Define expected commands based on workspace type
       const expectedCommands = hasLandoFile ? [
         "extension.runLando",
-        "extension.showLandofileInfo",
         "extension.enablePhpInterpreter",
         "extension.disablePhpInterpreter",
         "extension.checkPhpPlugins"
@@ -67,12 +66,12 @@ suite("Extension Test Suite", () => {
         await new Promise(resolve => setTimeout(resolve, 500)); // Wait 0.5 seconds before retrying
         attempts++;
       }
-      
+
       // Verify all expected commands are registered
       expectedCommands.forEach(cmd => {
         assert.ok(commands.includes(cmd), `${cmd} command should be registered`);
       });
-      
+
       assert.ok(extension.isActive, "Extension should be active");
     });
   });
@@ -180,7 +179,7 @@ suite("Extension Test Suite", () => {
 
       const landoSchema =
         yamlSchemas?.[
-          "https://4lando.github.io/lando-spec/landofile-spec.json"
+        "https://4lando.github.io/lando-spec/landofile-spec.json"
         ];
       assert.ok(landoSchema, "Extension should configure Lando schema");
       assert.ok(
@@ -276,5 +275,5 @@ suite("Extension Test Suite", () => {
     });
   });
 
-  
+
 });

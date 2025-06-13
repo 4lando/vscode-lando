@@ -32,7 +32,6 @@ suite("Extension Activation Test", () => {
       // Filter to only our extension's commands (not other extensions)
       const ourLandoCommands = landoCommands.filter(cmd => 
         cmd === "extension.runLando" || 
-        cmd === "extension.showLandofileInfo" ||
         cmd.startsWith("extension.enablePhp") ||
         cmd.startsWith("extension.disablePhp") ||
         cmd.startsWith("extension.checkPhp") ||
@@ -48,8 +47,7 @@ suite("Extension Activation Test", () => {
       if (ourLandoCommands.length > 0) {
         // If our extension is activated, it should register basic commands
         assert.ok(ourLandoCommands.includes("extension.runLando"), "runLando should be available if our extension is activated");
-        assert.ok(ourLandoCommands.includes("extension.showLandofileInfo"), "showLandofileInfo should be available if our extension is activated");
-      } else {
+        } else {
         // If no commands, that's also acceptable - extension might not be activated
         console.log("Extension not activated in single file mode - this is expected behavior");
       }

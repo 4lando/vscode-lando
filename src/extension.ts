@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as childProcess from 'child_process';
 import * as path from "path";
 import * as fs from "fs";
+import { activateShellDecorations } from "./shellDecorations";
 
 /** Line ending for terminal output */
 const CRLF = "\r\n";
@@ -397,11 +398,19 @@ export function activate(context: vscode.ExtensionContext) {
   outputChannel.appendLine("Lando extension is now active!");
   outputChannel.appendLine("=".repeat(50));
 
+  // Ensure YAML extension is available for enhanced YAML support
+  const yamlExtension = vscode.extensions.getExtension('redhat.vscode-yaml');
+  if (!yamlExtension) {
+    outputChannel.appendLine("Warning: Red Hat YAML extension not found. Enhanced YAML support may be limited.");
+  } else {
+    outputChannel.appendLine("Red Hat YAML extension found - Enhanced YAML support with bash highlighting enabled");
+  }
+
   // Get the workspace folder path
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  
-  // Register basic commands even if no workspace folder is found
-  registerBasicCommands(context);
+
+  // Activate shell decorations for Landofile files
+  activateShellDecorations(context);
 
   if (!workspaceFolder) {
     outputChannel.appendLine("No workspace folder found");
