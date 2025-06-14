@@ -8,7 +8,7 @@
   },
   "version": "0.0.1",
   "repository": "https://github.com/4lando/vscode-lando",
-  "icon": "resources/icon.png",
+  "icon": "resources/icon256.png",
   "engines": {
     "vscode": "^1.91.0"
   },
@@ -42,8 +42,8 @@
           "**/.lando.*.yml"
         ],
         "icon": {
-          "light": "resources/icon.png",
-          "dark": "resources/icon.png"
+          "light": "./resources/landofile.svg",
+          "dark": "./resources/landofile.svg"
         }
       }
     ],
