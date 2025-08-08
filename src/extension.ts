@@ -193,7 +193,6 @@ async function startLando(
     });
 
     let output = "";
-    let hasError = false;
 
     landoProcess.stdout.on("data", (data: Buffer) => {
       const message = data.toString();
@@ -201,20 +200,22 @@ async function startLando(
       outputChannel.appendLine(`Lando output: ${message.trim()}`);
     });
 
+    // Note: Many CLI tools (including Lando) output progress info to stderr,
+    // so we log it but don't treat it as an error. Exit code is the source of truth.
     landoProcess.stderr.on("data", (data: Buffer) => {
       const message = data.toString();
       output += message;
-      outputChannel.appendLine(`Lando error: ${message.trim()}`);
-      hasError = true;
+      outputChannel.appendLine(`Lando stderr: ${message.trim()}`);
     });
 
     landoProcess.on("close", (code: number) => {
       outputChannel.appendLine(`Lando process exited with code ${code}`);
       
-      if (code === 0 && !hasError) {
+      // Use exit code as the sole indicator of success - stderr output is not an error indicator
+      if (code === 0) {
         resolve(true);
       } else {
-        outputChannel.appendLine(`Lando failed to start: ${output}`);
+        outputChannel.appendLine(`Lando failed to start (exit code ${code}): ${output}`);
         resolve(false);
       }
     });
