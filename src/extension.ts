@@ -243,11 +243,25 @@ async function startLando(
  * @returns The path to the appropriate PHP wrapper script
  */
 function getPhpWrapperPath(): string {
-  // Get the path to the PHP wrapper script in the extension
-  const extensionPath = path.dirname(__dirname); // Go up from out/ to root
-  const wrapperPath = process.platform === "win32" 
+  // Get the current extension's path from VS Code
+  const currentExtension = vscode.extensions.getExtension("4lando.vscode-lando");
+  const extensionPath = currentExtension?.extensionPath;
+  
+  if (!extensionPath) {
+    outputChannel.appendLine("Error: Could not determine extension path");
+    throw new Error("Could not determine extension path");
+  }
+  
+  outputChannel.appendLine(`Extension path: ${extensionPath}`);
+  
+  // Always use the actual extension path - VS Code variables like 
+  // "${extensionInstallFolder:...}" are only resolved in certain configuration
+  // contexts, not when building file paths in JavaScript code.
+  const wrapperPath = process.platform === "win32"
     ? path.join(extensionPath, "bin", "php.bat")
-    : path.join(extensionPath, "php");
+    : path.join(extensionPath, "bin", "php");
+  
+  outputChannel.appendLine(`PHP wrapper path: ${wrapperPath}`);
   return wrapperPath;
 }
 
