@@ -840,7 +840,9 @@ function setupDockerMode(
     setTimeout(() => {
       terminal.sendText(`cd "${workspaceFolder}"`);
       if (process.platform !== "win32") {
-        terminal.sendText(          `alias php="VSCODE_LANDO_PHP_CONTAINER='${landoConfig.phpService}' VSCODE_LANDO_EXEC_CWD='${workingDir}' ${phpWrapperPath}"`        );
+        terminal.sendText(
+          `alias php="VSCODE_LANDO_PHP_CONTAINER='${landoConfig.phpService}' VSCODE_LANDO_EXEC_CWD='${workingDir}' ${phpWrapperPath}"`
+        );
       } else {
         terminal.sendText(`set VSCODE_LANDO_PHP_CONTAINER=${landoConfig.phpService}`);
         terminal.sendText(`set VSCODE_LANDO_EXEC_CWD=${workingDir}`);
@@ -895,27 +897,21 @@ async function restoreOriginalPhpSettings(): Promise<void> {
     outputChannel.appendLine(`Restoring validateExecutablePath to: ${originalPhpSettings.validateExecutablePath}`);
     outputChannel.appendLine(`Restoring debugExecutablePath to: ${originalPhpSettings.debugExecutablePath}`);
 
-    if (originalPhpSettings.executablePath !== undefined) {
-      await config.update(
-        "executablePath",
-        originalPhpSettings.executablePath,
-        vscode.ConfigurationTarget.Workspace
-      );
-    }
-    if (originalPhpSettings.validateExecutablePath !== undefined) {
-      await config.update(
-        "validate.executablePath",
-        originalPhpSettings.validateExecutablePath,
-        vscode.ConfigurationTarget.Workspace
-      );
-    }
-    if (originalPhpSettings.debugExecutablePath !== undefined) {
-      await config.update(
-        "debug.executablePath",
-        originalPhpSettings.debugExecutablePath,
-        vscode.ConfigurationTarget.Workspace
-      );
-    }
+    await config.update(
+      "executablePath",
+      originalPhpSettings.executablePath,
+      vscode.ConfigurationTarget.Workspace
+    );
+    await config.update(
+      "validate.executablePath",
+      originalPhpSettings.validateExecutablePath,
+      vscode.ConfigurationTarget.Workspace
+    );
+    await config.update(
+      "debug.executablePath",
+      originalPhpSettings.debugExecutablePath,
+      vscode.ConfigurationTarget.Workspace
+    );
     
     // Restore original PATH if it was modified
     if (originalPhpSettings.path !== undefined && originalPhpSettings.binDir !== undefined) {
