@@ -519,7 +519,7 @@ function registerRunLandoCommand(
       }
 
       // TODO: Support multiple workspaces and multiple lando apps per workspace
-      const cwd = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+      const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
       if (!cwd) {
         vscode.window.showErrorMessage("No workspace found");
         return;
