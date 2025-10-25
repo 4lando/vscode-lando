@@ -26,16 +26,20 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 - **Settings Restoration**: Automatically restores original PHP settings on deactivation
 - **Cross-platform**: Works on Windows, macOS, and Linux
 
-#### 📝 **Enhanced Lando File Support**
-- **Smart YAML**: Enhanced `.lando.yml` file editing with bash syntax highlighting
-- **Schema Validation**: Automatic validation using the Lando Schema Specification
-- **IntelliSense**: Autocompletion and error detection for Lando configuration
+#### 📝 **Enhanced Landofile Support**
+- **YAML with Custom Icon**: `.lando.yml` files use custom Landofile language with Lando icon
+- **Built-in JSON Schema**: Uses official Lando JSON schema for validation and autocomplete
+- **Schema-Based Features**: Property autocomplete, value validation, and documentation from schema
+- **Lando-Specific Enhancements**: Custom grammar for shell commands and Lando syntax
+- **Smart YAML**: Complete YAML language implementation with bash syntax highlighting
+- **IntelliSense**: Schema-driven autocompletion and error detection for Lando configuration
 - **Shell Commands**: Shell commands in `build`, `run`, and `cmd` sections get proper highlighting
+- **YAML References**: Ctrl+click on YAML aliases (`*recipe-path`) to jump to anchor definitions
+- **Real-time Validation**: Live validation with error highlighting for missing required fields, invalid recipes, and service types
 
 ### 🔜 Planned Features
 - [ ] Quick access to app URLs (copy to clipboard or open in browser)
 - [ ] Integrated log viewer with filtering
-- [ ] Enhanced `.lando.yml` editing with hints and autocompletion
 - [ ] Multi-workspace and multi-app support
 
 ### 🚀 Future Roadmap
@@ -80,7 +84,6 @@ Access these commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 
 - **Lando**: Must be installed and available in your system PATH
 - **VS Code**: Version 1.91.0 or higher
-- **Dependencies**: Red Hat YAML extension (automatically installed)
 
 ## Extension Settings
 
@@ -118,8 +121,12 @@ This is an open-source project. Contributions are welcome!
 
 ### 0.0.1 (In Development)
 - ✅ Lando command execution with terminal integration
-- ✅ Enhanced Landofile language with bash shell highlighting
-- ✅ YAML schema validation for Lando files
+- ✅ **Custom Landofile language** with YAML support and Lando icon
+- ✅ **Built-in JSON Schema integration** using official Lando specification
+- ✅ **Schema-based autocomplete** and validation for Lando files
+- ✅ **Complete YAML grammar** with embedded shell command highlighting
+- ✅ **YAML reference navigation** - Ctrl+click to jump between anchors and aliases
+- ✅ **Real-time validation** with error highlighting for missing fields, invalid recipes, and service types
 - ✅ Automatic PHP interpreter configuration
 - ✅ Container-based PHP execution with Docker wrappers
 - ✅ Terminal auto-configuration with PHP aliases

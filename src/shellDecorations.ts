@@ -1,5 +1,5 @@
 /**
- * Shell Decorations for Embedded Commands in YAML
+ * Shell Decorations for Embedded Commands in Landofile
  *
  * This module provides logic for decorating embedded shell commands in YAML files (e.g., .lando.yml) in VS Code.
  *
@@ -26,7 +26,7 @@
 import * as vscode from "vscode";
 
 /**
- * Provides shell command decorations for YAML files, especially for Lando command blocks.
+ * Provides shell command decorations for Landofile files, especially for Lando command blocks.
  * Handles block scalars (literal and folded), sequences, and single-line commands.
  */
 export class ShellDecorationProvider {
@@ -55,29 +55,45 @@ export class ShellDecorationProvider {
    * Registers listeners for YAML document changes and editor focus to update shell decorations.
    */
   private registerDecorationProvider(): void {
-    const documentSelector: vscode.DocumentSelector = {
-      language: "yaml",
-      pattern: "**/.lando*.yml"
-    };
-    const provider = vscode.languages.registerCodeLensProvider(
-      documentSelector,
-      new ShellCodeLensProvider()
-    );
-    this.disposables.push(provider);
+    // Register for landofile filenames
+    const documentSelectors: vscode.DocumentSelector[] = [
+      {
+        language: "landofile",
+        pattern: "**/.lando*.yml",
+      }
+    ];
+
+    // Register CodeLens providers for both languages
+    documentSelectors.forEach(selector => {
+      const provider = vscode.languages.registerCodeLensProvider(
+        selector,
+        new ShellCodeLensProvider()
+      );
+      this.disposables.push(provider);
+    });
+
+    // Listen for document changes
     const changeListener = vscode.workspace.onDidChangeTextDocument((event) => {
-      if (event.document.languageId === "yaml" && event.document.fileName.includes(".lando")) {
+      if ((event.document.languageId === "yaml" || event.document.languageId === "landofile") && 
+          event.document.fileName.includes('.lando.')) {
         this.updateDecorations(event.document);
       }
     });
     this.disposables.push(changeListener);
+
+    // Listen for editor changes
     const editorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (editor && editor.document.languageId === "yaml" && editor.document.fileName.includes(".lando")) {
+      if (editor && (editor.document.languageId === "yaml" || editor.document.languageId === "landofile") && 
+          editor.document.fileName.includes('.lando.')) {
         this.updateDecorations(editor.document);
       }
     });
     this.disposables.push(editorChangeListener);
+
+    // Apply decorations to currently visible editors
     vscode.window.visibleTextEditors.forEach(editor => {
-      if (editor.document.languageId === "yaml" && editor.document.fileName.includes(".lando")) {
+      if ((editor.document.languageId === "yaml" || editor.document.languageId === "landofile") && 
+          editor.document.fileName.includes('.lando.')) {
         this.updateDecorations(editor.document);
       }
     });
@@ -178,8 +194,9 @@ export class ShellDecorationProvider {
       
       // --- Sequence Handling ---
       // Detect start of a sequence of shell commands
-      if (/^\s*(build|run|build_as_root|run_as_root|cmd):\s*$/.test(line)) {
-        lastShellKey = RegExp.$1;
+      const sequenceKeyMatch = line.match(/^\s*(build|run|build_as_root|run_as_root|cmd):\s*$/);
+      if (sequenceKeyMatch) {
+        lastShellKey = sequenceKeyMatch[1];
         lastShellKeyIndent = indent;
         continue;
       }

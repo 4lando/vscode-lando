@@ -6,7 +6,7 @@
   "author": {
     "name": "Aaron Feledy"
   },
-  "version": "0.0.1",
+  "version": "1.0.0-beta.1",
   "repository": "https://github.com/4lando/vscode-lando",
   "icon": "resources/icon256.png",
   "engines": {
@@ -23,16 +23,13 @@
     "ddev"
   ],
   "activationEvents": [
-    "workspaceContains:**/.lando.yml"
+    "workspaceContains:**/.lando*.yml"
   ],
   "main": "./out/extension.js",
-  "extensionDependencies": [
-    "redhat.vscode-yaml"
-  ],
   "contributes": {
     "languages": [
       {
-        "id": "yaml",
+        "id": "landofile",
         "aliases": [
           "Landofile",
           "landofile"
@@ -44,13 +41,14 @@
         "icon": {
           "light": "./resources/landofile.svg",
           "dark": "./resources/landofile.svg"
-        }
+        },
+        "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
       {
-        "language": "yaml",
-        "scopeName": "source.yaml.landofile",
+        "language": "landofile",
+        "scopeName": "source.landofile",
         "path": "./syntaxes/landofile.tmLanguage.json",
         "embeddedLanguages": {
           "meta.embedded.block.shell": "source.shell",
@@ -90,6 +88,10 @@
       {
         "command": "extension.checkPhpPlugins",
         "title": "Check and Reload PHP Plugins"
+      },
+      {
+        "command": "extension.showLandofileInfo",
+        "title": "Show Landofile Language Info"
       }
     ],
     "configuration": {
@@ -121,14 +123,6 @@
           "description": "Reload PHP plugins after Lando commands"
         }
       }
-    },
-    "configurationDefaults": {
-      "yaml.schemas": {
-        "https://4lando.github.io/lando-spec/landofile-spec.json": [
-          ".lando.yml",
-          ".lando.*.yml"
-        ]
-      }
     }
   },
   "scripts": {
@@ -154,12 +148,14 @@
     "eslint": "^9.25.1",
     "mocha": "^11.2.2",
     "sinon": "^20.0.0",
-    "typescript": "^5.8.2",
-    "vscode-yaml": "^0.13.0"
+    "typescript": "^5.8.2"
   },
   "dependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/minimatch": "^5.1.2",
+    "ajv": "^8.17.1",
     "glob": "^11.1.0",
+    "js-yaml": "^4.1.0",
     "minimatch": "^10.0.1"
   }
 }

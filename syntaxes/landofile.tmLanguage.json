@@ -1,21 +1,497 @@
 {
     "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
     "name": "Landofile",
-    "scopeName": "source.yaml.landofile",
+    "scopeName": "source.landofile",
     "fileTypes": [
         ".lando.yml",
         ".lando.*.yml"
     ],
     "patterns": [
         {
-            "include": "#lando-shell-commands"
+            "include": "#comment"
         },
         {
-            "include": "source.yaml"
+            "include": "#property"
+        },
+        {
+            "include": "#directive"
+        },
+        {
+            "include": "#document"
         }
     ],
     "repository": {
-        "lando-shell-commands": {
+        "comment": {
+            "comment": "Comments",
+            "match": "(?:^|\\s+)((#)\\s*(.*)$)",
+            "captures": {
+                "1": {
+                    "name": "comment.line.number-sign.yaml"
+                },
+                "2": {
+                    "name": "punctuation.definition.comment.yaml"
+                },
+                "3": {
+                    "name": "comment.line.number-sign.yaml"
+                }
+            }
+        },
+        "property": {
+            "begin": "(?=!|&)",
+            "end": "(?!\\G)",
+            "name": "meta.property.yaml",
+            "patterns": [
+                {
+                    "captures": {
+                        "1": {
+                            "name": "keyword.control.property.anchor.yaml"
+                        },
+                        "2": {
+                            "name": "punctuation.definition.anchor.yaml"
+                        },
+                        "3": {
+                            "name": "entity.name.type.anchor.yaml"
+                        },
+                        "4": {
+                            "name": "invalid.illegal.character.anchor.yaml"
+                        }
+                    },
+                    "match": "\\G((&))([^\\s\\[\\]/{/},]+)(\\S+)?"
+                },
+                {
+                    "match": "(?x)\\G(?:!<(?: %[0-9A-Fa-f]{2} | [0-9A-Za-z\\-#;/?:@&=+$,_.!~*'()\\[\\]] )+> | (?:!(?:[0-9A-Za-z\\-]*!)?) (?: %[0-9A-Fa-f]{2} | [0-9A-Za-z\\-#;/?:@&=+$_.~*'()] )+ | !)(?=\\ |\\t|$)",
+                    "name": "storage.type.tag-handle.yaml"
+                },
+                {
+                    "match": "\\S+",
+                    "name": "invalid.illegal.tag-handle.yaml"
+                }
+            ]
+        },
+        "prototype": {
+            "patterns": [
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#property"
+                }
+            ]
+        },
+        "directive": {
+            "comment": "YAML directives",
+            "match": "^(%)(YAML|TAG)(\\s+(.*))?$",
+            "captures": {
+                "1": {
+                    "name": "punctuation.definition.directive.begin.yaml"
+                },
+                "2": {
+                    "name": "keyword.other.directive.yaml"
+                },
+                "4": {
+                    "name": "constant.numeric.yaml-version.yaml"
+                }
+            }
+        },
+        "document": {
+            "comment": "YAML document",
+            "patterns": [
+                {
+                    "include": "#node"
+                }
+            ]
+        },
+        "node": {
+            "comment": "YAML node",
+            "patterns": [
+                {
+                    "include": "#block-node"
+                },
+                {
+                    "include": "#flow-node"
+                }
+            ]
+        },
+        "block-node": {
+            "patterns": [
+                {
+                    "include": "#prototype"
+                },
+                {
+                    "include": "#block-scalar"
+                },
+                {
+                    "include": "#block-mapping"
+                },
+                {
+                    "include": "#block-sequence"
+                }
+            ]
+        },
+        "flow-node": {
+            "patterns": [
+                {
+                    "include": "#prototype"
+                },
+                {
+                    "include": "#flow-alias"
+                },
+                {
+                    "include": "#flow-plain"
+                },
+                {
+                    "include": "#flow-single-quoted"
+                },
+                {
+                    "include": "#flow-double-quoted"
+                },
+                {
+                    "include": "#flow-mapping"
+                },
+                {
+                    "include": "#flow-sequence"
+                }
+            ]
+        },
+        "block-scalar": {
+            "patterns": [
+                {
+                    "include": "#shell-block-scalar"
+                },
+                {
+                    "include": "#block-scalar-literal"
+                },
+                {
+                    "include": "#block-scalar-folded"
+                }
+            ]
+        },
+        "block-scalar-literal": {
+            "comment": "Block literal scalar",
+            "begin": "(?:^|\\G)(\\s*)(\\|)([1-9])?([-+])?(.*\\n?)",
+            "beginCaptures": {
+                "2": {
+                    "name": "keyword.control.flow.block-scalar.literal.yaml"
+                },
+                "3": {
+                    "name": "constant.numeric.indentation-indicator.yaml"
+                },
+                "4": {
+                    "name": "storage.modifier.chomping-indicator.yaml"
+                },
+                "5": {
+                    "patterns": [
+                        {
+                            "include": "#comment"
+                        }
+                    ]
+                }
+            },
+            "end": "^(?=\\S)|(?!\\G)",
+            "name": "string.unquoted.block.yaml",
+            "patterns": [
+                {
+                    "match": "^.+",
+                    "name": "string.unquoted.block.yaml"
+                }
+            ]
+        },
+        "block-scalar-folded": {
+            "comment": "Block folded scalar",
+            "begin": "(?:^|\\G)(\\s*)(>)([1-9])?([-+])?(.*\\n?)",
+            "beginCaptures": {
+                "2": {
+                    "name": "keyword.control.flow.block-scalar.folded.yaml"
+                },
+                "3": {
+                    "name": "constant.numeric.indentation-indicator.yaml"
+                },
+                "4": {
+                    "name": "storage.modifier.chomping-indicator.yaml"
+                },
+                "5": {
+                    "patterns": [
+                        {
+                            "include": "#comment"
+                        }
+                    ]
+                }
+            },
+            "end": "^(?=\\S)|(?!\\G)",
+            "name": "string.unquoted.block.yaml",
+            "patterns": [
+                {
+                    "match": "^.+",
+                    "name": "string.unquoted.block.yaml"
+                }
+            ]
+        },
+        "block-mapping": {
+            "patterns": [
+                {
+                    "include": "#lando-shell-mapping"
+                },
+                {
+                    "include": "#block-pair"
+                }
+            ]
+        },
+        "block-pair": {
+            "patterns": [
+                {
+                    "comment": "Block mapping pair with anchor",
+                    "begin": "(?:^|\\G)(\\s*)(?:(-)|(?:(-)(\\s+))?)((&)([^\\s\\[\\]\\{\\},]+))(\\s+)?(:)\\s+",
+                    "beginCaptures": {
+                        "2": {
+                            "name": "punctuation.definition.sequence.item.yaml"
+                        },
+                        "3": {
+                            "name": "punctuation.definition.sequence.item.yaml"
+                        },
+                        "5": {
+                            "name": "keyword.control.flow.anchor.yaml"
+                        },
+                        "6": {
+                            "name": "punctuation.definition.anchor.yaml"
+                        },
+                        "7": {
+                            "name": "entity.name.type.anchor.yaml"
+                        },
+                        "9": {
+                            "name": "punctuation.separator.key-value.yaml"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#node"
+                        },
+                        {
+                            "include": "#comment"
+                        }
+                    ],
+                    "while": "^(?=\\1\\s)|^(?=\\s*$)|^(?=\\s*#)"
+                },
+                {
+                    "comment": "Block mapping pair",
+                    "begin": "(?:^|\\G)(\\s*)(?:(-)|(?:(-)(\\s+))?)((?:[^\\s\\-?:,\\[\\]\\{\\}#&*!|>'\"%@`]|[?:-]\\S)+)(\\s*(:))\\s+",
+                    "beginCaptures": {
+                        "2": {
+                            "name": "punctuation.definition.sequence.item.yaml"
+                        },
+                        "3": {
+                            "name": "punctuation.definition.sequence.item.yaml"
+                        },
+                        "5": {
+                            "name": "entity.name.tag.yaml"
+                        },
+                        "7": {
+                            "name": "punctuation.separator.key-value.yaml"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#node"
+                        },
+                        {
+                            "include": "#comment"
+                        }
+                    ],
+                    "while": "^(?=\\1\\s)|^(?=\\s*$)|^(?=\\s*#)"
+                }
+            ]
+        },
+        "block-sequence": {
+            "patterns": [
+                {
+                    "comment": "Block sequence item",
+                    "begin": "(^|\\G)(\\s*)(-)(\\s+|\\s*$)",
+                    "beginCaptures": {
+                        "3": {
+                            "name": "punctuation.definition.sequence.item.yaml"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#node"
+                        },
+                        {
+                            "include": "#comment"
+                        }
+                    ],
+                    "while": "^(?=\\2\\s)|^(?=\\s*$)|^(?=\\s*#)"
+                }
+            ]
+        },
+        "flow-alias": {
+            "comment": "Alias reference",
+            "match": "((\\*))([^\\s\\[\\]\/{\/},]+)([^\\s\\]},]\\S*)?",
+            "captures": {
+                "1": {
+                    "name": "keyword.control.flow.alias.yaml"
+                },
+                "2": {
+                    "name": "punctuation.definition.alias.yaml"
+                },
+                "3": {
+                    "name": "variable.other.alias.yaml"
+                },
+                "4": {
+                    "name": "invalid.illegal.character.anchor.yaml"
+                }
+            }
+        },
+        "flow-plain": {
+            "comment": "Plain scalar",
+            "match": "(?:[^\\s\\-?:,\\[\\]\\{\\}#&*!|>'\"%@`]|[?:-]\\S)+",
+            "name": "string.unquoted.plain.yaml"
+        },
+        "flow-single-quoted": {
+            "comment": "Single quoted scalar",
+            "begin": "'",
+            "beginCaptures": {
+                "0": {
+                    "name": "punctuation.definition.string.begin.yaml"
+                }
+            },
+            "end": "'(?!')",
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.definition.string.end.yaml"
+                }
+            },
+            "name": "string.quoted.single.yaml",
+            "patterns": [
+                {
+                    "match": "''",
+                    "name": "constant.character.escape.single-quoted.yaml"
+                }
+            ]
+        },
+        "flow-double-quoted": {
+            "comment": "Double quoted scalar",
+            "begin": "\"",
+            "beginCaptures": {
+                "0": {
+                    "name": "punctuation.definition.string.begin.yaml"
+                }
+            },
+            "end": "\"",
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.definition.string.end.yaml"
+                }
+            },
+            "name": "string.quoted.double.yaml",
+            "patterns": [
+                {
+                    "match": "\\\\[0abtnvfre\"/\\\\N_LP]",
+                    "name": "constant.character.escape.yaml"
+                },
+                {
+                    "match": "\\\\x[0-9A-Fa-f]{2}",
+                    "name": "constant.character.escape.yaml"
+                },
+                {
+                    "match": "\\\\u[0-9A-Fa-f]{4}",
+                    "name": "constant.character.escape.yaml"
+                },
+                {
+                    "match": "\\\\U[0-9A-Fa-f]{8}",
+                    "name": "constant.character.escape.yaml"
+                }
+            ]
+        },
+        "flow-mapping": {
+            "comment": "Flow mapping",
+            "begin": "\\{",
+            "beginCaptures": {
+                "0": {
+                    "name": "punctuation.definition.mapping.begin.yaml"
+                }
+            },
+            "end": "\\}",
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.definition.mapping.end.yaml"
+                }
+            },
+            "name": "meta.flow-mapping.yaml",
+            "patterns": [
+                {
+                    "include": "#prototype"
+                },
+                {
+                    "include": "#flow-pair"
+                },
+                {
+                    "match": ",",
+                    "name": "punctuation.separator.mapping.yaml"
+                }
+            ]
+        },
+        "flow-sequence": {
+            "comment": "Flow sequence (array wrapped in square brackets)",
+            "begin": "\\[",
+            "beginCaptures": {
+                "0": {
+                    "name": "punctuation.definition.sequence.begin.yaml"
+                }
+            },
+            "end": "\\]",
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.definition.sequence.end.yaml"
+                }
+            },
+            "name": "meta.flow-sequence.yaml",
+            "patterns": [
+                {
+                    "match": ",",
+                    "name": "punctuation.separator.sequence.yaml"
+                },
+                {
+                    "include": "#flow-pair"
+                },
+                {
+                    "include": "#flow-node"
+                },
+                {
+                    "include": "#prototype"
+                }
+            ]
+        },
+        "flow-pair": {
+            "patterns": [
+                {
+                    "begin": "(?:(?:(-\\s*)?(['\"]))|(?:(-\\s*)?(.*?)))(\\s*(:))\\s+",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "punctuation.definition.sequence.item.yaml"
+                        },
+                        "2": {
+                            "name": "punctuation.definition.string.yaml"
+                        },
+                        "3": {
+                            "name": "punctuation.definition.sequence.item.yaml"
+                        },
+                        "4": {
+                            "name": "entity.name.tag.yaml"
+                        },
+                        "6": {
+                            "name": "punctuation.separator.key-value.yaml"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#flow-node"
+                        }
+                    ],
+                    "end": "(?=[,\\}\\]])"
+                }
+            ]
+        },
+        "lando-shell-mapping": {
+            "comment": "Lando-specific shell command mappings",
             "patterns": [
                 {
                     "include": "#shell-block-sequence"
@@ -24,13 +500,13 @@
                     "include": "#shell-flow-sequence"
                 },
                 {
-                    "include": "#tooling-cmd"
+                    "include": "#lando-tooling-cmd"
                 }
             ]
         },
         "shell-block-sequence": {
             "comment": "Block sequence (array) of shell commands for build, run, cmd keys",
-            "begin": "(?x)^(\\s*)(build|run|cmd)(:)\\s*$",
+            "begin": "(?x)^(\\s*)(build|build_as_root|run|run_as_root|cmd)(:)\\s*$",
             "beginCaptures": {
                 "2": {
                     "name": "entity.name.tag.yaml"
@@ -43,7 +519,7 @@
             "name": "meta.block-sequence.landofile",
             "patterns": [
                 {
-                    "include": "source.yaml#block-sequence"
+                    "include": "#block-sequence"
                 },
                 {
                     "begin": "(?<=-)\\s*",
@@ -59,7 +535,7 @@
         },
         "shell-flow-sequence": {
             "comment": "Flow sequence [cmd1, cmd2] of shell commands",
-            "begin": "(?x)^(\\s*)(build|run|cmd)(:)\\s*(\\[)",
+            "begin": "(?x)^(\\s*)(build|build_as_root|run|run_as_root|cmd)(:)\\s*(\\[)",
             "beginCaptures": {
                 "2": {
                     "name": "entity.name.tag.yaml"
@@ -80,7 +556,7 @@
             "name": "meta.flow-sequence.landofile",
             "patterns": [
                 {
-                    "include": "source.yaml#flow-sequence"
+                    "include": "#flow-sequence"
                 },
                 {
                     "begin": "(?<=[\\[,])\\s*([\"'])",
@@ -114,8 +590,8 @@
                 }
             ]
         },
-        "tooling-cmd": {
-            "comment": "Landofile cmd: key",
+        "lando-tooling-cmd": {
+            "comment": "Tooling commands. Captures value of `cmd` key with optional whitespace.",
             "begin": "(?x)^(\\s*)(cmd)(:)(\\s*)",
             "beginCaptures": {
                 "2": {
@@ -137,7 +613,7 @@
             ]
         },
         "shell-block-scalar": {
-            "comment": "Block scalar with shell commands for tooling cmd keys",
+            "comment": "Block scalar (multiline string) with shell commands. Captures `|` and `>` block scalars with optional indentation (1-9) and chomping indicator (+ or -).",
             "begin": "\\s*(?:(\\|)|(>))([1-9])?([-+])?(.*\\n?)",
             "beginCaptures": {
                 "1": {
@@ -155,7 +631,7 @@
                 "5": {
                     "patterns": [
                         {
-                            "include": "source.yaml#comment"
+                            "include": "#comment"
                         },
                         {
                             "match": ".+",
@@ -180,6 +656,7 @@
             ]
         },
         "shell-scalar": {
+            "comment": "Captures double-quoted, single-quoted, and plain shell scalar values.",
             "name": "meta.shell-scalar.landofile",
             "patterns": [
                 {
@@ -194,16 +671,16 @@
             ]
         },
         "shell-scalar-double-quoted": {
-            "comment": "Double-quoted shell scalar",
-            "begin": "\\s*(\")",
+            "comment": "Double-quoted shell scalar. Captures double-quoted string values with optional whitespace.",
+            "begin": "\"",
             "beginCaptures": {
-                "1": {
+                "0": {
                     "name": "punctuation.definition.string.begin.yaml"
                 }
             },
-            "end": "(\")",
+            "end": "\"",
             "endCaptures": {
-                "1": {
+                "0": {
                     "name": "punctuation.definition.string.end.yaml"
                 }
             },
@@ -216,16 +693,16 @@
             ]
         },
         "shell-scalar-single-quoted": {
-            "comment": "Single-quoted shell scalar",
-            "begin": "\\s*(')",
+            "comment": "Single-quoted shell scalar. Captures single-quoted string values with optional whitespace.",
+            "begin": "'",
             "beginCaptures": {
-                "1": {
+                "0": {
                     "name": "punctuation.definition.string.begin.yaml"
                 }
             },
-            "end": "(')",
+            "end": "'(?!')",
             "endCaptures": {
-                "1": {
+                "0": {
                     "name": "punctuation.definition.string.end.yaml"
                 }
             },
@@ -233,12 +710,16 @@
             "contentName": "meta.embedded.line.shell",
             "patterns": [
                 {
+                    "match": "''",
+                    "name": "constant.character.escape.single-quoted.yaml"
+                },
+                {
                     "include": "source.shell#typical_statements"
                 }
             ]
         },
         "shell-scalar-plain": {
-            "comment": "Plain shell scalar",
+            "comment": "Plain shell scalar. Captures unquoted string values with optional whitespace.",
             "begin": "(?=\\s*\\S)",
             "end": "(?=^\\s*\\S)|(?=^\\s*$)|(?=\\s*#)",
             "name": "meta.plain.scalar.landofile",

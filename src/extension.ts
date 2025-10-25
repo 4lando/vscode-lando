@@ -3,6 +3,8 @@ import * as childProcess from 'child_process';
 import * as path from "path";
 import * as fs from "fs";
 import { activateShellDecorations } from "./shellDecorations";
+import { activateLandofileLanguageFeatures } from "./landofileLanguageFeatures";
+import { registerYamlReferenceProvider } from "./yamlReferenceProvider";
 
 /** Line ending for terminal output */
 const CRLF = "\r\n";
@@ -400,11 +402,33 @@ async function overridePhpExecutablePath(
   };
 }
 
+
+
+/**
+ * Status bar item for Landofile (YAML)
+ */
+let landoStatusBarItem: vscode.StatusBarItem | undefined;
+
+function updateLandoStatusBarItem(editor: vscode.TextEditor | undefined) {
+  if (!editor) {
+    landoStatusBarItem?.hide();
+    return;
+  }
+  const fileName = editor.document.fileName.split(/[\\/]/).pop() || '';
+  if (fileName.match(/^\.lando(\..+)?\.yml$/) && editor.document.languageId === 'landofile') {
+    landoStatusBarItem!.text = 'Landofile';
+    landoStatusBarItem!.tooltip = 'Lando Landofile';
+    landoStatusBarItem!.show();
+  } else {
+    landoStatusBarItem?.hide();
+  }
+}
+
 /**
  * Activates the Lando extension
  * @param context - The extension context provided by VS Code
  */
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   // Create output channel
   outputChannel = vscode.window.createOutputChannel("Lando");
   outputChannel.show(true); // Force reveal the output channel
@@ -413,25 +437,23 @@ export function activate(context: vscode.ExtensionContext) {
   outputChannel.appendLine("Lando extension is now active!");
   outputChannel.appendLine("=".repeat(50));
 
-  // Ensure YAML extension is available for enhanced YAML support
-  const yamlExtension = vscode.extensions.getExtension('redhat.vscode-yaml');
-  if (!yamlExtension) {
-    outputChannel.appendLine("Warning: Red Hat YAML extension not found. Enhanced YAML support may be limited.");
-  } else {
-    outputChannel.appendLine("Red Hat YAML extension found - Enhanced YAML support with bash highlighting enabled");
-  }
-
   // Get the workspace folder path
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
+  // Activate YAML reference provider for anchor/alias navigation
+  registerYamlReferenceProvider(context);
+
   // Activate shell decorations for Landofile files
   activateShellDecorations(context);
+
+  // Activate Landofile language features and get schema provider
+  const schemaProvider = activateLandofileLanguageFeatures(context);
 
   if (!workspaceFolder) {
     outputChannel.appendLine("No workspace folder found");
     // Register basic commands when no workspace folder is found
     registerBasicCommands(context);
-    return;
+    return { schemaProvider };
   }
 
   outputChannel.appendLine(`Workspace folder: ${workspaceFolder}`);
@@ -442,7 +464,7 @@ export function activate(context: vscode.ExtensionContext) {
     outputChannel.appendLine(".lando.yml not found - PHP integration will not activate");
     // Register basic commands when no .lando.yml is found
     registerBasicCommands(context);
-    return;
+    return { schemaProvider };
   }
 
   // Parse app name from .lando.yml
@@ -450,7 +472,7 @@ export function activate(context: vscode.ExtensionContext) {
   if (!landoConfig) {
     outputChannel.appendLine("Could not parse .lando.yml - PHP integration will not activate");
     registerBasicCommands(context);
-    return;
+    return { schemaProvider };
   }
 
   outputChannel.appendLine(`Lando app: ${landoConfig.appName}`);
@@ -461,6 +483,14 @@ export function activate(context: vscode.ExtensionContext) {
   
   // Register all commands
   registerAllCommands(context, workspaceFolder, landoConfig);
+  
+  // Register the status bar item
+  landoStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  context.subscriptions.push(landoStatusBarItem);
+  updateLandoStatusBarItem(vscode.window.activeTextEditor);
+  context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(updateLandoStatusBarItem));
+  context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(() => updateLandoStatusBarItem(vscode.window.activeTextEditor)));
+  return { schemaProvider };
 }
 
 /**
@@ -746,6 +776,82 @@ function registerPhpManagementCommands(
       await checkAndReloadPhpPlugins();
     })
   );
+
+  // Command to show Landofile language information
+  context.subscriptions.push(
+    vscode.commands.registerCommand("extension.showLandofileInfo", () => {
+      const panel = vscode.window.createWebviewPanel(
+        'landofileInfo',
+        'Landofile Language Features',
+        vscode.ViewColumn.One,
+        {}
+      );
+      
+      panel.webview.html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Landofile Language Features</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; }
+            h1 { color: #007acc; }
+            h2 { color: #333; margin-top: 30px; }
+            code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }
+            .feature { margin: 10px 0; padding: 10px; background: #f8f9fa; border-left: 4px solid #007acc; }
+            .supported { color: #28a745; }
+            .usage { background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 15px 0; }
+          </style>
+        </head>
+        <body>
+          <h1>Enhanced Landofile Language Features</h1>
+          <div class="usage">
+            <h3>🚀 Available Features</h3>
+            <div class="feature">
+              <strong>📝 JSON Schema Integration</strong><br>
+              Schema-based autocomplete, validation, and documentation using official Lando specification
+            </div>
+            <div class="feature">
+              <strong>🐚 Shell Command Integration</strong><br>
+              Bash syntax highlighting in build, run, and cmd sections with shell decorations
+            </div>
+            <div class="feature">
+              <strong>🎯 Lando-Specific Enhancements</strong><br>
+              Recipe suggestions, service type autocomplete, and custom validation patterns
+            </div>
+            <div class="feature">
+              <strong>⚙️ Editor Features</strong><br>
+              Auto-formatting, smart indentation, bracket matching, and code folding
+            </div>
+          </div>
+          
+          <h2>Usage</h2>
+          <ul>
+            <li><strong>Schema Autocomplete:</strong> Type <code>:</code> after a key to see schema-based suggestions</li>
+            <li><strong>Enhanced Hover:</strong> Hover over keys for schema documentation + Lando hints</li>
+            <li><strong>Real-time Validation:</strong> Get validation feedback from both schema and custom rules</li>
+            <li><strong>Formatting:</strong> Use <code>Shift+Alt+F</code> to format with schema awareness</li>
+          </ul>
+          
+          <h2>Schema-Driven Features</h2>
+          <div class="supported">
+            <strong>Property autocomplete:</strong> All Lando configuration keys from schema<br>
+            <strong>Value validation:</strong> Enforced by JSON schema specification<br>
+            <strong>Type checking:</strong> Schema ensures correct data types<br>
+            <strong>Documentation:</strong> Hover shows schema descriptions
+          </div>
+          
+          <h2>JSON Schema Source</h2>
+          <p>The extension uses the official Lando JSON schema specification:</p>
+          <code>https://4lando.github.io/lando-spec/landofile-spec.json</code>
+          
+          <p><em>This ensures all autocomplete, validation, and documentation are based on the official Lando specification.</em></p>
+        </body>
+        </html>
+      `;
+    })
+  );
 }
 
 /**
@@ -760,8 +866,6 @@ async function checkAndStartLando(
   context: vscode.ExtensionContext
 ): Promise<void> {
   try {
-    // Get configuration for auto-start
-    
     // Check if Lando app is running
     const isRunning = await checkLandoStatus(workspaceFolder, landoConfig.appName);
     
