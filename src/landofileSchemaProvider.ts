@@ -185,17 +185,13 @@ export class LandofileSchemaProvider {
      */
     async validateDocument(document: vscode.TextDocument): Promise<vscode.Diagnostic[]> {
         try {
-            console.log('LandofileSchemaProvider.validateDocument called');
             const schema = await this.getSchema();
-            console.log('Schema loaded:', !!schema);
-            console.log('Schema properties:', Object.keys(schema.properties || {}));
             const text = document.getText();
             
             // Parse YAML content
             let yamlData: any;
             try {
                 yamlData = yaml.load(text);
-                console.log('YAML parsed successfully:', !!yamlData);
             } catch (parseError: any) {
                 // Handle YAML parsing errors
                 const error = parseError as Error;
@@ -233,17 +229,20 @@ export class LandofileSchemaProvider {
             });
             
             // Add custom validation rules for required fields
+            // Note: The official Lando schema may not enforce these as required,
+            // but 'name' and 'recipe' are practically required for a valid Lando app.
+            // This provides better user guidance for common Landofile configurations.
             const enhancedSchema = {
                 ...schema,
-                required: ['name', 'recipe']
+                required: [...(schema.required || []), 'name', 'recipe'].filter(
+                    (v, i, a) => a.indexOf(v) === i // Remove duplicates
+                )
             };
             
             const validate = ajv.compile(enhancedSchema);
             const valid = validate(yamlData);
-            console.log('Schema validation result:', valid);
             
             if (valid) {
-                console.log('Document is valid according to schema');
                 return [];
             }
             
@@ -251,9 +250,7 @@ export class LandofileSchemaProvider {
             const diagnostics: vscode.Diagnostic[] = [];
             
             if (validate.errors) {
-                console.log('Schema validation errors:', validate.errors.length);
                 for (const error of validate.errors) {
-                    console.log('Processing error:', error.keyword, error.instancePath);
                     const range = this.getRangeFromJsonPath(document, error.instancePath);
                     
                     if (range) {
@@ -264,14 +261,10 @@ export class LandofileSchemaProvider {
                             source: 'landofile'
                         };
                         diagnostics.push(diagnostic);
-                        console.log('Added diagnostic:', diagnostic.message, 'at line:', range.start.line);
-                    } else {
-                        console.log('Could not find range for error:', error.instancePath);
                     }
                 }
             }
             
-            console.log('Returning diagnostics:', diagnostics.length);
             return diagnostics;
             
         } catch (error) {
@@ -326,12 +319,18 @@ export class LandofileSchemaProvider {
                     // Same level - replace last element
                     currentPath[currentPath.length - 1] = key;
                 } else {
-                    // Shallower level - pop path until we find the right level
-                    while (currentPath.length > 1 && currentIndent > indent) {
+                    // Shallower level - pop path to match the target depth
+                    // Calculate target depth based on indentation (assumes 2-space indent)
+                    const targetDepth = Math.floor(indent / 2) + 1;
+                    while (currentPath.length > targetDepth) {
                         currentPath.pop();
-                        currentIndent = indent;
                     }
-                    currentPath[currentPath.length - 1] = key;
+                    // Replace the element at the current depth
+                    if (currentPath.length > 0) {
+                        currentPath[currentPath.length - 1] = key;
+                    } else {
+                        currentPath.push(key);
+                    }
                     currentIndent = indent;
                 }
                 
@@ -339,7 +338,6 @@ export class LandofileSchemaProvider {
                 if (this.pathMatches(pathParts, currentPath)) {
                     const startColumn = line.indexOf(key);
                     const endColumn = line.length;
-                    console.log('Found matching path:', pathParts.join('/'), 'at line:', i, 'for key:', key);
                     return new vscode.Range(i, startColumn, i, endColumn);
                 }
             }
@@ -371,20 +369,16 @@ export class LandofileSchemaProvider {
      * @returns True if the paths match
      */
     private pathMatches(targetParts: string[], currentPath: string[]): boolean {
-        console.log('Checking path match:', targetParts.join('/'), 'vs', currentPath.join('/'));
         if (targetParts.length !== currentPath.length) {
-            console.log('Path lengths don\'t match:', targetParts.length, 'vs', currentPath.length);
             return false;
         }
         
         for (let i = 0; i < targetParts.length; i++) {
             if (targetParts[i] !== currentPath[i]) {
-                console.log('Path parts don\'t match at index', i, ':', targetParts[i], 'vs', currentPath[i]);
                 return false;
             }
         }
         
-        console.log('Paths match!');
         return true;
     }
     

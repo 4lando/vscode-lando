@@ -451,13 +451,18 @@ export class LandofileHoverProvider implements vscode.HoverProvider {
           // Same level - replace last element
           currentPath[currentPath.length - 1] = key;
         } else {
-          // Shallower level - pop path until we find the right level, then add
-          while (currentPath.length > 1 && currentIndent > indent) {
+          // Shallower level - pop path to match the target depth
+          // Calculate target depth based on indentation (assumes 2-space indent)
+          const targetDepth = Math.floor(indent / 2) + 1;
+          while (currentPath.length > targetDepth) {
             currentPath.pop();
-            // Estimate the new current indent (we go back one level)
-            currentIndent = indent;
           }
-          currentPath[currentPath.length - 1] = key;
+          // Replace the element at the current depth
+          if (currentPath.length > 0) {
+            currentPath[currentPath.length - 1] = key;
+          } else {
+            currentPath.push(key);
+          }
           currentIndent = indent;
         }
       }
@@ -641,7 +646,6 @@ export class LandofileValidationProvider {
    * This complements the schema-based validation with Lando-specific rules
    */
   async validateDocument(document: vscode.TextDocument): Promise<void> {
-    console.log('LandofileValidationProvider.validateDocument called for:', document.uri.fsPath);
     const diagnostics: vscode.Diagnostic[] = [];
     const text = document.getText();
     const lines = text.split('\n');
@@ -673,14 +677,10 @@ export class LandofileValidationProvider {
         }
       }
     
-    console.log('Custom validation diagnostics:', diagnostics.length);
-    
     // Perform schema-based validation
     const schemaDiagnostics = await this.schemaProvider.validateDocument(document);
-    console.log('Schema validation diagnostics:', schemaDiagnostics.length);
     diagnostics.push(...schemaDiagnostics);
     
-    console.log('Total diagnostics to set:', diagnostics.length);
     this.diagnosticCollection.set(document.uri, diagnostics);
   }
   

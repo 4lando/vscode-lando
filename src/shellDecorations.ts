@@ -26,6 +26,24 @@
 import * as vscode from "vscode";
 
 /**
+ * Checks if a document is a Landofile based on language ID or filename pattern.
+ * Matches .lando.yml or .lando.*.yml files.
+ * 
+ * @param document The document to check
+ * @returns True if the document is a Landofile
+ */
+function isLandofile(document: vscode.TextDocument): boolean {
+  if (document.languageId === "landofile") {
+    return true;
+  }
+  if (document.languageId === "yaml") {
+    // Match .lando.yml or .lando.*.yml patterns
+    return /[/\\]\.lando(\.[^/\\]+)?\.yml$/i.test(document.fileName);
+  }
+  return false;
+}
+
+/**
  * Provides shell command decorations for Landofile files, especially for Lando command blocks.
  * Handles block scalars (literal and folded), sequences, and single-line commands.
  */
@@ -74,8 +92,7 @@ export class ShellDecorationProvider {
 
     // Listen for document changes
     const changeListener = vscode.workspace.onDidChangeTextDocument((event) => {
-      if ((event.document.languageId === "yaml" || event.document.languageId === "landofile") && 
-          event.document.fileName.includes('.lando.')) {
+      if (isLandofile(event.document)) {
         this.updateDecorations(event.document);
       }
     });
@@ -83,8 +100,7 @@ export class ShellDecorationProvider {
 
     // Listen for editor changes
     const editorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (editor && (editor.document.languageId === "yaml" || editor.document.languageId === "landofile") && 
-          editor.document.fileName.includes('.lando.')) {
+      if (editor && isLandofile(editor.document)) {
         this.updateDecorations(editor.document);
       }
     });
@@ -92,8 +108,7 @@ export class ShellDecorationProvider {
 
     // Apply decorations to currently visible editors
     vscode.window.visibleTextEditors.forEach(editor => {
-      if ((editor.document.languageId === "yaml" || editor.document.languageId === "landofile") && 
-          editor.document.fileName.includes('.lando.')) {
+      if (isLandofile(editor.document)) {
         this.updateDecorations(editor.document);
       }
     });

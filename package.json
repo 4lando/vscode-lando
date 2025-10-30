@@ -23,7 +23,8 @@
     "ddev"
   ],
   "activationEvents": [
-    "workspaceContains:**/.lando*.yml"
+    "workspaceContains:**/.lando.yml",
+    "workspaceContains:**/.lando.*.yml"
   ],
   "main": "./out/extension.js",
   "contributes": {
