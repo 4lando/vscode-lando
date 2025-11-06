@@ -138,6 +138,8 @@
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/minimatch": "^5.1.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.17.32",
     "@types/sinon": "^17.0.4",
@@ -152,8 +154,6 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "@types/js-yaml": "^4.0.9",
-    "@types/minimatch": "^5.1.2",
     "ajv": "^8.17.1",
     "glob": "^11.1.0",
     "js-yaml": "^4.1.0",
