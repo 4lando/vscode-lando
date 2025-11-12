@@ -93,6 +93,14 @@
       {
         "command": "extension.showLandofileInfo",
         "title": "Show Landofile Language Info"
+      },
+      {
+        "command": "extension.selectLandoApp",
+        "title": "Select Lando App"
+      },
+      {
+        "command": "extension.rescanLandoApps",
+        "title": "Rescan for Lando Apps"
       }
     ],
     "configuration": {
@@ -122,6 +130,30 @@
           "type": "boolean",
           "default": true,
           "description": "Reload PHP plugins after Lando commands"
+        },
+        "lando.detection.maxDepth": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Maximum directory depth to search for .lando.yml files"
+        },
+        "lando.detection.excludeDirs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "node_modules",
+            "vendor",
+            ".git",
+            "dist",
+            "build",
+            "out",
+            ".cache",
+            "coverage"
+          ],
+          "description": "Directories to exclude when scanning for Lando apps"
         }
       }
     }

@@ -5,6 +5,7 @@ import * as fs from "fs";
 import { activateShellDecorations } from "./shellDecorations";
 import { activateLandofileLanguageFeatures } from "./landofileLanguageFeatures";
 import { registerYamlReferenceProvider } from "./yamlReferenceProvider";
+import { LandoAppDetector, LandoApp } from "./landoAppDetector";
 
 /** Line ending for terminal output */
 const CRLF = "\r\n";
@@ -409,6 +410,21 @@ async function overridePhpExecutablePath(
  */
 let landoStatusBarItem: vscode.StatusBarItem | undefined;
 
+/**
+ * Status bar item for detected Lando apps
+ */
+let landoAppsStatusBarItem: vscode.StatusBarItem | undefined;
+
+/**
+ * Global Lando app detector instance
+ */
+let landoAppDetector: LandoAppDetector | undefined;
+
+/**
+ * Currently selected/active Lando app
+ */
+let activeLandoApp: LandoApp | undefined;
+
 function updateLandoStatusBarItem(editor: vscode.TextEditor | undefined) {
   if (!editor) {
     landoStatusBarItem?.hide();
@@ -437,9 +453,6 @@ export async function activate(context: vscode.ExtensionContext) {
   outputChannel.appendLine("Lando extension is now active!");
   outputChannel.appendLine("=".repeat(50));
 
-  // Get the workspace folder path
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-
   // Activate YAML reference provider for anchor/alias navigation
   registerYamlReferenceProvider(context);
 
@@ -449,48 +462,234 @@ export async function activate(context: vscode.ExtensionContext) {
   // Activate Landofile language features and get schema provider
   const schemaProvider = activateLandofileLanguageFeatures(context);
 
+  // Initialize the Lando app detector
+  landoAppDetector = new LandoAppDetector();
+  await landoAppDetector.activate(context, outputChannel);
+
+  // Set up status bar for detected apps
+  setupLandoAppsStatusBar(context);
+
+  // Register app detection commands
+  registerAppDetectionCommands(context);
+
+  // Listen for app detection changes
+  landoAppDetector.onDidChangeApps(event => {
+    updateLandoAppsStatusBar();
+    
+    if (event.added.length > 0) {
+      const names = event.added.map(a => a.name).join(', ');
+      outputChannel.appendLine(`New Lando apps detected: ${names}`);
+    }
+    if (event.removed.length > 0) {
+      const names = event.removed.map(a => a.name).join(', ');
+      outputChannel.appendLine(`Lando apps removed: ${names}`);
+    }
+
+    // Auto-select the first app if none is selected
+    if (!activeLandoApp && event.apps.length > 0) {
+      setActiveLandoApp(landoAppDetector!.getPrimaryApp());
+    }
+    
+    // Clear active app if it was removed
+    if (activeLandoApp && event.removed.some(a => a.configPath === activeLandoApp?.configPath)) {
+      setActiveLandoApp(landoAppDetector!.getPrimaryApp());
+    }
+  });
+
+  // Set the initial active app
+  const primaryApp = landoAppDetector.getPrimaryApp();
+  if (primaryApp) {
+    setActiveLandoApp(primaryApp);
+  }
+
+  // Get the workspace folder path (for backward compatibility)
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
   if (!workspaceFolder) {
     outputChannel.appendLine("No workspace folder found");
     // Register basic commands when no workspace folder is found
     registerBasicCommands(context);
-    return { schemaProvider };
+    return { schemaProvider, appDetector: landoAppDetector };
   }
 
   outputChannel.appendLine(`Workspace folder: ${workspaceFolder}`);
 
-  // Check if .lando.yml exists
-  const landoFile = path.join(workspaceFolder, ".lando.yml");
-  if (!fs.existsSync(landoFile)) {
-    outputChannel.appendLine(".lando.yml not found - PHP integration will not activate");
+  // Check if .lando.yml exists (using detector)
+  if (!landoAppDetector.hasApps()) {
+    outputChannel.appendLine("No Lando apps detected - PHP integration will not activate");
     // Register basic commands when no .lando.yml is found
     registerBasicCommands(context);
-    return { schemaProvider };
+    return { schemaProvider, appDetector: landoAppDetector };
   }
 
-  // Parse app name from .lando.yml
-  const landoConfig = parseLandoConfig(workspaceFolder);
-  if (!landoConfig) {
-    outputChannel.appendLine("Could not parse .lando.yml - PHP integration will not activate");
+  // Use the active app's configuration
+  const activeApp = activeLandoApp;
+  if (!activeApp) {
+    outputChannel.appendLine("No active Lando app - PHP integration will not activate");
     registerBasicCommands(context);
-    return { schemaProvider };
+    return { schemaProvider, appDetector: landoAppDetector };
   }
 
-  outputChannel.appendLine(`Lando app: ${landoConfig.appName}`);
+  // Convert LandoApp to LandoConfig for backward compatibility
+  const landoConfig = convertAppToConfig(activeApp);
+  
+  outputChannel.appendLine(`Active Lando app: ${landoConfig.appName}`);
   outputChannel.appendLine(`Container name: ${landoConfig.phpContainer}`);
 
   // Check Lando status and start if needed
-  checkAndStartLando(workspaceFolder, landoConfig, context);
+  checkAndStartLando(activeApp.rootPath, landoConfig, context);
   
   // Register all commands
-  registerAllCommands(context, workspaceFolder, landoConfig);
+  registerAllCommands(context, activeApp.rootPath, landoConfig);
   
-  // Register the status bar item
+  // Register the Landofile status bar item
   landoStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   context.subscriptions.push(landoStatusBarItem);
   updateLandoStatusBarItem(vscode.window.activeTextEditor);
   context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(updateLandoStatusBarItem));
   context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(() => updateLandoStatusBarItem(vscode.window.activeTextEditor)));
-  return { schemaProvider };
+  
+  return { schemaProvider, appDetector: landoAppDetector };
+}
+
+/**
+ * Converts a LandoApp to LandoConfig for backward compatibility
+ */
+function convertAppToConfig(app: LandoApp): LandoConfig {
+  const phpService = vscode.workspace.getConfiguration("lando").get("php.service", "appserver");
+  return {
+    appName: app.name,
+    cleanAppName: app.cleanName,
+    phpService,
+    phpContainer: `${app.cleanName}_${phpService}_1`
+  };
+}
+
+/**
+ * Sets the active Lando app
+ */
+function setActiveLandoApp(app: LandoApp | undefined): void {
+  activeLandoApp = app;
+  updateLandoAppsStatusBar();
+  
+  if (app) {
+    outputChannel.appendLine(`Active Lando app set to: ${app.name} (${app.configPath})`);
+  } else {
+    outputChannel.appendLine('No active Lando app');
+  }
+}
+
+/**
+ * Sets up the status bar item for detected Lando apps
+ */
+function setupLandoAppsStatusBar(context: vscode.ExtensionContext): void {
+  landoAppsStatusBarItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left,
+    99 // Just after the Landofile status bar
+  );
+  landoAppsStatusBarItem.command = 'extension.selectLandoApp';
+  context.subscriptions.push(landoAppsStatusBarItem);
+  updateLandoAppsStatusBar();
+}
+
+/**
+ * Updates the Lando apps status bar item
+ */
+function updateLandoAppsStatusBar(): void {
+  if (!landoAppsStatusBarItem || !landoAppDetector) {
+    return;
+  }
+
+  const appCount = landoAppDetector.getAppCount();
+  
+  if (appCount === 0) {
+    landoAppsStatusBarItem.hide();
+    return;
+  }
+
+  if (activeLandoApp) {
+    landoAppsStatusBarItem.text = `$(server) ${activeLandoApp.name}`;
+    landoAppsStatusBarItem.tooltip = appCount > 1 
+      ? `Active Lando App: ${activeLandoApp.name}\n${appCount} apps detected - Click to switch`
+      : `Lando App: ${activeLandoApp.name}\nPath: ${activeLandoApp.rootPath}`;
+  } else {
+    landoAppsStatusBarItem.text = `$(server) ${appCount} Lando app${appCount > 1 ? 's' : ''}`;
+    landoAppsStatusBarItem.tooltip = `${appCount} Lando app${appCount > 1 ? 's' : ''} detected - Click to select`;
+  }
+  
+  landoAppsStatusBarItem.show();
+}
+
+/**
+ * Registers commands for Lando app detection
+ */
+function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
+  // Command to select a Lando app
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.selectLandoApp', async () => {
+      if (!landoAppDetector) {
+        vscode.window.showErrorMessage('Lando app detector not initialized');
+        return;
+      }
+
+      const apps = landoAppDetector.getApps();
+      
+      if (apps.length === 0) {
+        vscode.window.showInformationMessage('No Lando apps detected in workspace');
+        return;
+      }
+
+      if (apps.length === 1) {
+        setActiveLandoApp(apps[0]);
+        vscode.window.showInformationMessage(`Active Lando app: ${apps[0].name}`);
+        return;
+      }
+
+      // Show quick pick for multiple apps
+      const items = apps.map(app => ({
+        label: app.name,
+        description: app.recipe || 'Custom',
+        detail: app.rootPath,
+        app
+      }));
+
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select a Lando app to activate',
+        title: 'Lando Apps'
+      });
+
+      if (selected) {
+        setActiveLandoApp(selected.app);
+        vscode.window.showInformationMessage(`Active Lando app: ${selected.app.name}`);
+      }
+    })
+  );
+
+  // Command to rescan for Lando apps
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.rescanLandoApps', async () => {
+      if (!landoAppDetector) {
+        vscode.window.showErrorMessage('Lando app detector not initialized');
+        return;
+      }
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: 'Scanning for Lando apps...',
+          cancellable: false
+        },
+        async () => {
+          await landoAppDetector!.rescan();
+        }
+      );
+
+      const appCount = landoAppDetector.getAppCount();
+      vscode.window.showInformationMessage(
+        `Found ${appCount} Lando app${appCount !== 1 ? 's' : ''}`
+      );
+    })
+  );
 }
 
 /**
@@ -1042,6 +1241,15 @@ async function restoreOriginalPhpSettings(): Promise<void> {
 export async function deactivate(): Promise<void> {
   // Restore original PHP settings if they were changed
   await restoreOriginalPhpSettings();
+  
+  // Dispose of the app detector
+  if (landoAppDetector) {
+    landoAppDetector.dispose();
+    landoAppDetector = undefined;
+  }
+  
+  // Clear active app reference
+  activeLandoApp = undefined;
   
   if (outputChannel) {
     outputChannel.appendLine("Lando extension is now deactivated!");
