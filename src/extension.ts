@@ -6,6 +6,7 @@ import { activateShellDecorations } from "./shellDecorations";
 import { activateLandofileLanguageFeatures } from "./landofileLanguageFeatures";
 import { registerYamlReferenceProvider } from "./yamlReferenceProvider";
 import { LandoAppDetector, LandoApp } from "./landoAppDetector";
+import { LandoStatusMonitor } from "./landoStatusMonitor";
 
 /** Line ending for terminal output */
 const CRLF = "\r\n";
@@ -421,6 +422,11 @@ let landoAppsStatusBarItem: vscode.StatusBarItem | undefined;
 let landoAppDetector: LandoAppDetector | undefined;
 
 /**
+ * Global Lando status monitor instance
+ */
+let landoStatusMonitor: LandoStatusMonitor | undefined;
+
+/**
  * Currently selected/active Lando app
  */
 let activeLandoApp: LandoApp | undefined;
@@ -466,6 +472,22 @@ export async function activate(context: vscode.ExtensionContext) {
   landoAppDetector = new LandoAppDetector();
   await landoAppDetector.activate(context, outputChannel);
 
+  // Initialize the Lando status monitor
+  landoStatusMonitor = new LandoStatusMonitor();
+  await landoStatusMonitor.activate(context, outputChannel);
+  
+  // Set initial apps for the status monitor
+  landoStatusMonitor.setApps(landoAppDetector.getApps());
+  
+  // Update status bar when status changes
+  landoStatusMonitor.onDidChangeStatus(() => {
+    updateLandoAppsStatusBar();
+  });
+  
+  landoStatusMonitor.onDidUpdateStatuses(() => {
+    updateLandoAppsStatusBar();
+  });
+
   // Set up status bar for detected apps
   setupLandoAppsStatusBar(context);
 
@@ -474,6 +496,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Listen for app detection changes
   landoAppDetector.onDidChangeApps(event => {
+    // Update the status monitor with new apps list
+    landoStatusMonitor?.setApps(event.apps);
+    
     updateLandoAppsStatusBar();
     
     if (event.added.length > 0) {
@@ -608,13 +633,38 @@ function updateLandoAppsStatusBar(): void {
   }
 
   if (activeLandoApp) {
-    landoAppsStatusBarItem.text = `$(server) ${activeLandoApp.name}`;
-    landoAppsStatusBarItem.tooltip = appCount > 1 
-      ? `Active Lando App: ${activeLandoApp.name}\n${appCount} apps detected - Click to switch`
-      : `Lando App: ${activeLandoApp.name}\nPath: ${activeLandoApp.rootPath}`;
+    // Get status from the status monitor
+    const status = landoStatusMonitor?.getStatus(activeLandoApp);
+    const isRunning = status?.running ?? false;
+    
+    // Use different icons for running vs stopped
+    const icon = isRunning ? '$(debug-start)' : '$(debug-stop)';
+    const statusText = isRunning ? 'Running' : 'Stopped';
+    
+    landoAppsStatusBarItem.text = `${icon} ${activeLandoApp.name}`;
+    
+    // Set color based on status
+    landoAppsStatusBarItem.backgroundColor = isRunning 
+      ? undefined 
+      : new vscode.ThemeColor('statusBarItem.warningBackground');
+    
+    // Build tooltip with status information
+    let tooltip = `Lando App: ${activeLandoApp.name}\n`;
+    tooltip += `Status: ${statusText}`;
+    if (status) {
+      tooltip += ` (${status.runningContainers}/${status.totalContainers} containers)`;
+    }
+    tooltip += `\nPath: ${activeLandoApp.rootPath}`;
+    if (appCount > 1) {
+      tooltip += `\n\n${appCount} apps detected - Click to switch`;
+    } else {
+      tooltip += `\n\nClick to view options`;
+    }
+    landoAppsStatusBarItem.tooltip = tooltip;
   } else {
     landoAppsStatusBarItem.text = `$(server) ${appCount} Lando app${appCount > 1 ? 's' : ''}`;
     landoAppsStatusBarItem.tooltip = `${appCount} Lando app${appCount > 1 ? 's' : ''} detected - Click to select`;
+    landoAppsStatusBarItem.backgroundColor = undefined;
   }
   
   landoAppsStatusBarItem.show();
@@ -688,6 +738,35 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
       vscode.window.showInformationMessage(
         `Found ${appCount} Lando app${appCount !== 1 ? 's' : ''}`
       );
+    })
+  );
+
+  // Command to refresh Lando status
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.refreshLandoStatus', async () => {
+      if (!landoStatusMonitor) {
+        vscode.window.showErrorMessage('Lando status monitor not initialized');
+        return;
+      }
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: 'Refreshing Lando status...',
+          cancellable: false
+        },
+        async () => {
+          await landoStatusMonitor!.refresh();
+        }
+      );
+
+      if (activeLandoApp) {
+        const status = landoStatusMonitor.getStatus(activeLandoApp);
+        const statusText = status?.running ? 'running' : 'stopped';
+        vscode.window.showInformationMessage(
+          `${activeLandoApp.name} is ${statusText}`
+        );
+      }
     })
   );
 }
@@ -1241,6 +1320,12 @@ async function restoreOriginalPhpSettings(): Promise<void> {
 export async function deactivate(): Promise<void> {
   // Restore original PHP settings if they were changed
   await restoreOriginalPhpSettings();
+  
+  // Dispose of the status monitor
+  if (landoStatusMonitor) {
+    landoStatusMonitor.dispose();
+    landoStatusMonitor = undefined;
+  }
   
   // Dispose of the app detector
   if (landoAppDetector) {

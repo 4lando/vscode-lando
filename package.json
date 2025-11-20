@@ -101,6 +101,10 @@
       {
         "command": "extension.rescanLandoApps",
         "title": "Rescan for Lando Apps"
+      },
+      {
+        "command": "extension.refreshLandoStatus",
+        "title": "Refresh Lando Status"
       }
     ],
     "configuration": {
@@ -154,6 +158,25 @@
             "coverage"
           ],
           "description": "Directories to exclude when scanning for Lando apps"
+        },
+        "lando.statusMonitoring.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time status monitoring of Lando apps"
+        },
+        "lando.statusMonitoring.interval": {
+          "type": "number",
+          "default": 10,
+          "minimum": 5,
+          "maximum": 300,
+          "description": "Status polling interval in seconds"
+        },
+        "lando.statusMonitoring.timeout": {
+          "type": "number",
+          "default": 10,
+          "minimum": 5,
+          "maximum": 60,
+          "description": "Timeout for status check commands in seconds"
         }
       }
     }
