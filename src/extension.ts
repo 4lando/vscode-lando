@@ -243,6 +243,134 @@ async function startLando(
 }
 
 /**
+ * Stops Lando app
+ * @param workspaceFolder - The workspace folder path
+ * @param notification - Optional notification promise for cancellation
+ * @returns Promise resolving to true if stopped successfully, false otherwise
+ */
+async function stopLando(
+  workspaceFolder: string,
+  notification?: Thenable<string | undefined>
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    outputChannel.appendLine("Stopping Lando...");
+    
+    const landoProcess = childProcess.spawn("lando", ["stop"], {
+      cwd: workspaceFolder,
+      stdio: "pipe",
+    });
+
+    let output = "";
+
+    landoProcess.stdout.on("data", (data: Buffer) => {
+      const message = data.toString();
+      output += message;
+      outputChannel.appendLine(`Lando output: ${message.trim()}`);
+    });
+
+    // Note: Many CLI tools (including Lando) output progress info to stderr,
+    // so we log it but don't treat it as an error. Exit code is the source of truth.
+    landoProcess.stderr.on("data", (data: Buffer) => {
+      const message = data.toString();
+      output += message;
+      outputChannel.appendLine(`Lando stderr: ${message.trim()}`);
+    });
+
+    landoProcess.on("close", (code: number) => {
+      outputChannel.appendLine(`Lando process exited with code ${code}`);
+      
+      // Use exit code as the sole indicator of success - stderr output is not an error indicator
+      if (code === 0) {
+        resolve(true);
+      } else {
+        outputChannel.appendLine(`Lando failed to stop (exit code ${code}): ${output}`);
+        resolve(false);
+      }
+    });
+
+    landoProcess.on("error", (error: Error) => {
+      outputChannel.appendLine(`Error stopping Lando: ${error.message}`);
+      resolve(false);
+    });
+
+    // Handle cancellation
+    if (notification) {
+      notification.then((selection) => {
+        if (selection === "Cancel") {
+          outputChannel.appendLine("Lando stop cancelled by user");
+          landoProcess.kill();
+          resolve(false);
+        }
+      });
+    }
+  });
+}
+
+/**
+ * Restarts Lando app
+ * @param workspaceFolder - The workspace folder path
+ * @param notification - Optional notification promise for cancellation
+ * @returns Promise resolving to true if restarted successfully, false otherwise
+ */
+async function restartLando(
+  workspaceFolder: string,
+  notification?: Thenable<string | undefined>
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    outputChannel.appendLine("Restarting Lando...");
+    
+    const landoProcess = childProcess.spawn("lando", ["restart"], {
+      cwd: workspaceFolder,
+      stdio: "pipe",
+    });
+
+    let output = "";
+
+    landoProcess.stdout.on("data", (data: Buffer) => {
+      const message = data.toString();
+      output += message;
+      outputChannel.appendLine(`Lando output: ${message.trim()}`);
+    });
+
+    // Note: Many CLI tools (including Lando) output progress info to stderr,
+    // so we log it but don't treat it as an error. Exit code is the source of truth.
+    landoProcess.stderr.on("data", (data: Buffer) => {
+      const message = data.toString();
+      output += message;
+      outputChannel.appendLine(`Lando stderr: ${message.trim()}`);
+    });
+
+    landoProcess.on("close", (code: number) => {
+      outputChannel.appendLine(`Lando process exited with code ${code}`);
+      
+      // Use exit code as the sole indicator of success - stderr output is not an error indicator
+      if (code === 0) {
+        resolve(true);
+      } else {
+        outputChannel.appendLine(`Lando failed to restart (exit code ${code}): ${output}`);
+        resolve(false);
+      }
+    });
+
+    landoProcess.on("error", (error: Error) => {
+      outputChannel.appendLine(`Error restarting Lando: ${error.message}`);
+      resolve(false);
+    });
+
+    // Handle cancellation
+    if (notification) {
+      notification.then((selection) => {
+        if (selection === "Cancel") {
+          outputChannel.appendLine("Lando restart cancelled by user");
+          landoProcess.kill();
+          resolve(false);
+        }
+      });
+    }
+  });
+}
+
+/**
  * Gets the path to the PHP wrapper script
  * @returns The path to the appropriate PHP wrapper script
  */
@@ -674,7 +802,7 @@ function updateLandoAppsStatusBar(): void {
  * Registers commands for Lando app detection
  */
 function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
-  // Command to select a Lando app
+  // Command to select a Lando app or show quick actions
   context.subscriptions.push(
     vscode.commands.registerCommand('extension.selectLandoApp', async () => {
       if (!landoAppDetector) {
@@ -689,28 +817,100 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         return;
       }
 
-      if (apps.length === 1) {
+      // Build quick actions menu
+      interface QuickActionItem extends vscode.QuickPickItem {
+        action?: 'start' | 'stop' | 'restart' | 'refresh' | 'switch';
+        app?: LandoApp;
+      }
+
+      // Auto-select if there's exactly one app and no active app set
+      if (!activeLandoApp && apps.length === 1) {
         setActiveLandoApp(apps[0]);
-        vscode.window.showInformationMessage(`Active Lando app: ${apps[0].name}`);
+      }
+
+      const items: QuickActionItem[] = [];
+      
+      if (activeLandoApp) {
+        const status = landoStatusMonitor?.getStatus(activeLandoApp);
+        const isRunning = status?.running ?? false;
+        
+        // Show contextual actions based on status
+        if (isRunning) {
+          items.push({
+            label: '$(debug-stop) Stop',
+            description: `Stop ${activeLandoApp.name}`,
+            action: 'stop'
+          });
+          items.push({
+            label: '$(debug-restart) Restart',
+            description: `Restart ${activeLandoApp.name}`,
+            action: 'restart'
+          });
+        } else {
+          items.push({
+            label: '$(debug-start) Start',
+            description: `Start ${activeLandoApp.name}`,
+            action: 'start'
+          });
+        }
+        
+        items.push({
+          label: '$(refresh) Refresh Status',
+          description: 'Refresh the current status',
+          action: 'refresh'
+        });
+      }
+      
+      // If there are multiple apps, add switch option
+      if (apps.length > 1) {
+        items.push({
+          label: '$(list-selection) Switch App',
+          description: `${apps.length} apps available`,
+          action: 'switch'
+        });
+      }
+
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: activeLandoApp ? `${activeLandoApp.name} - Select an action` : 'Select a Lando app',
+        title: 'Lando'
+      });
+
+      if (!selected) {
         return;
       }
 
-      // Show quick pick for multiple apps
-      const items = apps.map(app => ({
-        label: app.name,
-        description: app.recipe || 'Custom',
-        detail: app.rootPath,
-        app
-      }));
+      switch (selected.action) {
+        case 'start':
+          await vscode.commands.executeCommand('extension.startLandoApp');
+          break;
+        case 'stop':
+          await vscode.commands.executeCommand('extension.stopLandoApp');
+          break;
+        case 'restart':
+          await vscode.commands.executeCommand('extension.restartLandoApp');
+          break;
+        case 'refresh':
+          await vscode.commands.executeCommand('extension.refreshLandoStatus');
+          break;
+        case 'switch':
+          // Show app selection submenu
+          const appItems = apps.map(app => ({
+            label: app.name,
+            description: app.recipe || 'Custom',
+            detail: app.rootPath,
+            app
+          }));
 
-      const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: 'Select a Lando app to activate',
-        title: 'Lando Apps'
-      });
+          const selectedApp = await vscode.window.showQuickPick(appItems, {
+            placeHolder: 'Select a Lando app to activate',
+            title: 'Lando Apps'
+          });
 
-      if (selected) {
-        setActiveLandoApp(selected.app);
-        vscode.window.showInformationMessage(`Active Lando app: ${selected.app.name}`);
+          if (selectedApp) {
+            setActiveLandoApp(selectedApp.app);
+            vscode.window.showInformationMessage(`Active Lando app: ${selectedApp.app.name}`);
+          }
+          break;
       }
     })
   );
@@ -766,6 +966,111 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         vscode.window.showInformationMessage(
           `${activeLandoApp.name} is ${statusText}`
         );
+      }
+    })
+  );
+
+  // Command to start the active Lando app
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.startLandoApp', async () => {
+      if (!activeLandoApp) {
+        vscode.window.showErrorMessage('No active Lando app selected');
+        return;
+      }
+
+      const notification = vscode.window.showInformationMessage(
+        `Starting ${activeLandoApp.name}... This may take a few minutes.`,
+        'Cancel'
+      );
+
+      const success = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Starting ${activeLandoApp.name}...`,
+          cancellable: false
+        },
+        async () => {
+          const result = await startLando(activeLandoApp!.rootPath, notification);
+          return result;
+        }
+      );
+
+      if (success) {
+        vscode.window.showInformationMessage(`${activeLandoApp.name} started successfully`);
+        // Refresh the status
+        await landoStatusMonitor?.refresh();
+      } else {
+        vscode.window.showErrorMessage(`Failed to start ${activeLandoApp.name}`);
+      }
+    })
+  );
+
+  // Command to stop the active Lando app
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.stopLandoApp', async () => {
+      if (!activeLandoApp) {
+        vscode.window.showErrorMessage('No active Lando app selected');
+        return;
+      }
+
+      const notification = vscode.window.showInformationMessage(
+        `Stopping ${activeLandoApp.name}...`,
+        'Cancel'
+      );
+
+      const success = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Stopping ${activeLandoApp.name}...`,
+          cancellable: false
+        },
+        async () => {
+          const result = await stopLando(activeLandoApp!.rootPath, notification);
+          return result;
+        }
+      );
+
+      if (success) {
+        vscode.window.showInformationMessage(`${activeLandoApp.name} stopped successfully`);
+        // Refresh the status
+        await landoStatusMonitor?.refresh();
+      } else {
+        vscode.window.showErrorMessage(`Failed to stop ${activeLandoApp.name}`);
+      }
+    })
+  );
+
+  // Command to restart the active Lando app
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.restartLandoApp', async () => {
+      if (!activeLandoApp) {
+        vscode.window.showErrorMessage('No active Lando app selected');
+        return;
+      }
+
+      const notification = vscode.window.showInformationMessage(
+        `Restarting ${activeLandoApp.name}... This may take a few minutes.`,
+        'Cancel'
+      );
+
+      const success = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Restarting ${activeLandoApp.name}...`,
+          cancellable: false
+        },
+        async () => {
+          const result = await restartLando(activeLandoApp!.rootPath, notification);
+          return result;
+        }
+      );
+
+      if (success) {
+        vscode.window.showInformationMessage(`${activeLandoApp.name} restarted successfully`);
+        // Refresh the status
+        await landoStatusMonitor?.refresh();
+      } else {
+        vscode.window.showErrorMessage(`Failed to restart ${activeLandoApp.name}`);
       }
     })
   );

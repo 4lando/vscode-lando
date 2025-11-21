@@ -105,6 +105,18 @@
       {
         "command": "extension.refreshLandoStatus",
         "title": "Refresh Lando Status"
+      },
+      {
+        "command": "extension.startLandoApp",
+        "title": "Lando: Start App"
+      },
+      {
+        "command": "extension.stopLandoApp",
+        "title": "Lando: Stop App"
+      },
+      {
+        "command": "extension.restartLandoApp",
+        "title": "Lando: Restart App"
       }
     ],
     "configuration": {
