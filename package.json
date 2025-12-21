@@ -117,6 +117,14 @@
       {
         "command": "extension.restartLandoApp",
         "title": "Lando: Restart App"
+      },
+      {
+        "command": "extension.openLandoUrl",
+        "title": "Lando: Open App URL"
+      },
+      {
+        "command": "extension.copyLandoUrl",
+        "title": "Lando: Copy App URL"
       }
     ],
     "configuration": {

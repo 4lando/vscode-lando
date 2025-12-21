@@ -307,6 +307,71 @@ async function stopLando(
 }
 
 /**
+ * Represents a URL exposed by a Lando service
+ */
+interface LandoServiceUrl {
+  /** The service name (e.g., 'appserver', 'database') */
+  service: string;
+  /** The full URL */
+  url: string;
+  /** Whether this is the primary URL for the service */
+  primary: boolean;
+}
+
+/**
+ * Gets the URLs exposed by a Lando app
+ * @param workspaceFolder - The workspace folder path
+ * @returns Promise resolving to array of service URLs
+ */
+async function getLandoUrls(workspaceFolder: string): Promise<LandoServiceUrl[]> {
+  const urls: LandoServiceUrl[] = [];
+  
+  try {
+    const result = childProcess.execSync('lando info --format=json', {
+      cwd: workspaceFolder,
+      encoding: 'utf8',
+      timeout: 15000,
+    });
+
+    const services = JSON.parse(result) as Array<{
+      service: string;
+      urls?: string[];
+    }>;
+
+    for (const service of services) {
+      if (service.urls && service.urls.length > 0) {
+        // First URL is considered primary
+        service.urls.forEach((url, index) => {
+          urls.push({
+            service: service.service,
+            url,
+            primary: index === 0
+          });
+        });
+      }
+    }
+
+    outputChannel.appendLine(`Found ${urls.length} URL(s) for Lando app`);
+  } catch (error: unknown) {
+    outputChannel.appendLine(`Error getting Lando URLs: ${error}`);
+  }
+
+  return urls;
+}
+
+/**
+ * Gets the primary URL for a Lando app (first URL of the first service with URLs)
+ * @param workspaceFolder - The workspace folder path
+ * @returns Promise resolving to the primary URL or undefined
+ */
+async function getPrimaryLandoUrl(workspaceFolder: string): Promise<string | undefined> {
+  const urls = await getLandoUrls(workspaceFolder);
+  // Return the first primary URL (typically the appserver)
+  const primary = urls.find(u => u.primary);
+  return primary?.url;
+}
+
+/**
  * Restarts Lando app
  * @param workspaceFolder - The workspace folder path
  * @param notification - Optional notification promise for cancellation
@@ -819,7 +884,7 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       // Build quick actions menu
       interface QuickActionItem extends vscode.QuickPickItem {
-        action?: 'start' | 'stop' | 'restart' | 'refresh' | 'switch';
+        action?: 'start' | 'stop' | 'restart' | 'refresh' | 'switch' | 'openUrl' | 'copyUrl';
         app?: LandoApp;
       }
 
@@ -836,6 +901,16 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         
         // Show contextual actions based on status
         if (isRunning) {
+          items.push({
+            label: '$(link-external) Open in Browser',
+            description: `Open ${activeLandoApp.name} URL`,
+            action: 'openUrl'
+          });
+          items.push({
+            label: '$(copy) Copy URL',
+            description: `Copy ${activeLandoApp.name} URL to clipboard`,
+            action: 'copyUrl'
+          });
           items.push({
             label: '$(debug-stop) Stop',
             description: `Stop ${activeLandoApp.name}`,
@@ -891,6 +966,12 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
           break;
         case 'refresh':
           await vscode.commands.executeCommand('extension.refreshLandoStatus');
+          break;
+        case 'openUrl':
+          await vscode.commands.executeCommand('extension.openLandoUrl');
+          break;
+        case 'copyUrl':
+          await vscode.commands.executeCommand('extension.copyLandoUrl');
           break;
         case 'switch':
           // Show app selection submenu
@@ -1071,6 +1152,120 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         await landoStatusMonitor?.refresh();
       } else {
         vscode.window.showErrorMessage(`Failed to restart ${activeLandoApp.name}`);
+      }
+    })
+  );
+
+  // Command to open the active Lando app's URL in browser
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.openLandoUrl', async () => {
+      if (!activeLandoApp) {
+        vscode.window.showErrorMessage('No active Lando app selected');
+        return;
+      }
+
+      // Check if the app is running
+      const status = landoStatusMonitor?.getStatus(activeLandoApp);
+      if (!status?.running) {
+        const action = await vscode.window.showWarningMessage(
+          `${activeLandoApp.name} is not running. Start it first?`,
+          'Start',
+          'Cancel'
+        );
+        if (action === 'Start') {
+          await vscode.commands.executeCommand('extension.startLandoApp');
+          // Wait a bit for URLs to be available
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          return;
+        }
+      }
+
+      const urls = await getLandoUrls(activeLandoApp.rootPath);
+      
+      if (urls.length === 0) {
+        vscode.window.showWarningMessage(`No URLs available for ${activeLandoApp.name}`);
+        return;
+      }
+
+      if (urls.length === 1) {
+        // Open the only URL directly
+        await vscode.env.openExternal(vscode.Uri.parse(urls[0].url));
+        return;
+      }
+
+      // Show picker for multiple URLs
+      const items = urls.map(u => ({
+        label: u.url,
+        description: u.service + (u.primary ? ' (primary)' : ''),
+        url: u.url
+      }));
+
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select a URL to open',
+        title: `${activeLandoApp.name} URLs`
+      });
+
+      if (selected) {
+        await vscode.env.openExternal(vscode.Uri.parse(selected.url));
+      }
+    })
+  );
+
+  // Command to copy the active Lando app's URL to clipboard
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.copyLandoUrl', async () => {
+      if (!activeLandoApp) {
+        vscode.window.showErrorMessage('No active Lando app selected');
+        return;
+      }
+
+      // Check if the app is running
+      const status = landoStatusMonitor?.getStatus(activeLandoApp);
+      if (!status?.running) {
+        const action = await vscode.window.showWarningMessage(
+          `${activeLandoApp.name} is not running. Start it first?`,
+          'Start',
+          'Cancel'
+        );
+        if (action === 'Start') {
+          await vscode.commands.executeCommand('extension.startLandoApp');
+          // Wait a bit for URLs to be available
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          return;
+        }
+      }
+
+      const urls = await getLandoUrls(activeLandoApp.rootPath);
+      
+      if (urls.length === 0) {
+        vscode.window.showWarningMessage(`No URLs available for ${activeLandoApp.name}`);
+        return;
+      }
+
+      if (urls.length === 1) {
+        // Copy the only URL directly
+        await vscode.env.clipboard.writeText(urls[0].url);
+        vscode.window.showInformationMessage(`Copied: ${urls[0].url}`);
+        return;
+      }
+
+      // Show picker for multiple URLs
+      const items = urls.map(u => ({
+        label: u.url,
+        description: u.service + (u.primary ? ' (primary)' : ''),
+        url: u.url
+      }));
+
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select a URL to copy',
+        title: `${activeLandoApp.name} URLs`
+      });
+
+      if (selected) {
+        await vscode.env.clipboard.writeText(selected.url);
+        vscode.window.showInformationMessage(`Copied: ${selected.url}`);
       }
     })
   );
