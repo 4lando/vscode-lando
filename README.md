@@ -21,13 +21,18 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 - **Task Interception**: Automatically redirects PHP commands in VS Code tasks to use Lando
 
 #### ⚙️ **Configuration & Management**
-- **Status Monitoring**: Check if Lando apps are running
+- **Multi-App Support**: Detects multiple Lando apps in workspace, switch between them easily
+- **Status Monitoring**: Real-time status bar indicator with configurable polling interval
+- **Quick Actions**: Start, stop, restart apps from the status bar menu
+- **URL Access**: Open app URLs in browser or copy to clipboard
 - **Environment Setup**: Easily configure PHP environment in active terminals
 - **Settings Restoration**: Automatically restores original PHP settings on deactivation
 - **Cross-platform**: Works on Windows, macOS, and Linux
 
 #### 📝 **Enhanced Landofile Support**
-- **YAML with Custom Icon**: `.lando.yml` files use custom Landofile language with Lando icon
+- **Independent Language**: Custom Landofile language - no external YAML extensions required
+- **File Detection**: Supports `.lando.yml` and `.lando.*.yml` files (e.g., `.lando.local.yml`)
+- **Custom Icon**: Landofile files display with the Lando icon in the file explorer
 - **Built-in JSON Schema**: Uses official Lando JSON schema for validation and autocomplete
 - **Schema-Based Features**: Property autocomplete, value validation, and documentation from schema
 - **Lando-Specific Enhancements**: Custom grammar for shell commands and Lando syntax
@@ -38,9 +43,7 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 - **Real-time Validation**: Live validation with error highlighting for missing required fields, invalid recipes, and service types
 
 ### 🔜 Planned Features
-- [ ] Quick access to app URLs (copy to clipboard or open in browser)
 - [ ] Integrated log viewer with filtering
-- [ ] Multi-workspace and multi-app support
 
 ### 🚀 Future Roadmap
 - Automatic Xdebug configuration
@@ -73,6 +76,14 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 Access these commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 
 - **"Run Lando Command"** - Execute any Lando command interactively
+- **"Lando: Start App"** - Start the active Lando app
+- **"Lando: Stop App"** - Stop the active Lando app
+- **"Lando: Restart App"** - Restart the active Lando app
+- **"Lando: Open App URL"** - Open the app URL in your default browser
+- **"Lando: Copy App URL"** - Copy the app URL to clipboard
+- **"Select Lando App"** - Choose which Lando app to use when multiple are detected
+- **"Rescan for Lando Apps"** - Rescan the workspace for Lando apps
+- **"Refresh Lando Status"** - Manually refresh the status bar indicator
 - **"Enable Lando PHP Interpreter"** - Manually enable PHP integration
 - **"Disable Lando PHP Interpreter"** - Restore original PHP settings
 - **"Set PHP Environment in Terminal"** - Configure PHP alias in active terminal
@@ -91,16 +102,27 @@ Configure the extension behavior in your VS Code settings:
 
 ```jsonc
 {
+  // Core settings
   "lando.appMount": "/app",         // Working directory in container
   "lando.autoStart": false,         // Auto-start Lando apps on activation
   "lando.php.enabled": true,        // Enable/disable Lando PHP interpreter
   "lando.php.service": "appserver", // Default PHP service name
+
+  // App detection
+  "lando.detection.maxDepth": 3,              // Max directory depth to search
+  "lando.detection.excludeDirs": [            // Directories to exclude
+    "node_modules", "vendor", ".git", "dist"
+  ],
+
+  // Status monitoring
+  "lando.statusMonitoring.enabled": true,     // Enable real-time status monitoring
+  "lando.statusMonitoring.interval": 10,      // Polling interval in seconds
+  "lando.statusMonitoring.timeout": 10        // Status check timeout in seconds
 }
 ```
 
 ## Known Issues
 
-- Currently supports single workspace/single Lando app setups
 - PHP command interception only works for shell-type tasks with direct PHP commands
 
 ## Contributing
@@ -116,24 +138,6 @@ This is an open-source project. Contributions are welcome!
 - Install the Extension Test Runner extension
 - Run tests via the Testing view or `Ctrl+Cmd+; A`
 - Run `npm run test` to run tests
-
-## Release Notes
-
-### 0.0.1 (In Development)
-- ✅ Lando command execution with terminal integration
-- ✅ **Custom Landofile language** with YAML support and Lando icon
-- ✅ **Built-in JSON Schema integration** using official Lando specification
-- ✅ **Schema-based autocomplete** and validation for Lando files
-- ✅ **Complete YAML grammar** with embedded shell command highlighting
-- ✅ **YAML reference navigation** - Ctrl+click to jump between anchors and aliases
-- ✅ **Real-time validation** with error highlighting for missing fields, invalid recipes, and service types
-- ✅ Automatic PHP interpreter configuration
-- ✅ Container-based PHP execution with Docker wrappers
-- ✅ Terminal auto-configuration with PHP aliases
-- ✅ Task interception for PHP commands
-- ✅ Lando app auto-detection and startup
-- ✅ Cross-platform support (Windows, macOS, Linux)
-- ✅ Comprehensive configuration options
 
 ## License
 
