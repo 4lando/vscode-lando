@@ -125,6 +125,10 @@
       {
         "command": "extension.copyLandoUrl",
         "title": "Lando: Copy App URL"
+      },
+      {
+        "command": "extension.viewLandoLogs",
+        "title": "Lando: View Logs"
       }
     ],
     "configuration": {

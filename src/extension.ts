@@ -372,6 +372,51 @@ async function getPrimaryLandoUrl(workspaceFolder: string): Promise<string | und
 }
 
 /**
+ * Represents a Lando service
+ */
+interface LandoService {
+  /** The service name (e.g., 'appserver', 'database') */
+  name: string;
+  /** The service type (e.g., 'php', 'mysql') */
+  type: string;
+}
+
+/**
+ * Gets the services defined in a Lando app
+ * @param workspaceFolder - The workspace folder path
+ * @returns Promise resolving to array of services
+ */
+async function getLandoServices(workspaceFolder: string): Promise<LandoService[]> {
+  const services: LandoService[] = [];
+  
+  try {
+    const result = childProcess.execSync('lando info --format=json', {
+      cwd: workspaceFolder,
+      encoding: 'utf8',
+      timeout: 15000,
+    });
+
+    const serviceData = JSON.parse(result) as Array<{
+      service: string;
+      type?: string;
+    }>;
+
+    for (const service of serviceData) {
+      services.push({
+        name: service.service,
+        type: service.type || 'unknown'
+      });
+    }
+
+    outputChannel.appendLine(`Found ${services.length} service(s) for Lando app`);
+  } catch (error: unknown) {
+    outputChannel.appendLine(`Error getting Lando services: ${error}`);
+  }
+
+  return services;
+}
+
+/**
  * Restarts Lando app
  * @param workspaceFolder - The workspace folder path
  * @param notification - Optional notification promise for cancellation
@@ -884,7 +929,7 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       // Build quick actions menu
       interface QuickActionItem extends vscode.QuickPickItem {
-        action?: 'start' | 'stop' | 'restart' | 'refresh' | 'switch' | 'openUrl' | 'copyUrl';
+        action?: 'start' | 'stop' | 'restart' | 'refresh' | 'switch' | 'openUrl' | 'copyUrl' | 'viewLogs';
         app?: LandoApp;
       }
 
@@ -910,6 +955,11 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
             label: '$(copy) Copy URL',
             description: `Copy ${activeLandoApp.name} URL to clipboard`,
             action: 'copyUrl'
+          });
+          items.push({
+            label: '$(output) View Logs',
+            description: `View ${activeLandoApp.name} logs`,
+            action: 'viewLogs'
           });
           items.push({
             label: '$(debug-stop) Stop',
@@ -972,6 +1022,9 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
           break;
         case 'copyUrl':
           await vscode.commands.executeCommand('extension.copyLandoUrl');
+          break;
+        case 'viewLogs':
+          await vscode.commands.executeCommand('extension.viewLandoLogs');
           break;
         case 'switch':
           // Show app selection submenu
@@ -1267,6 +1320,86 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         await vscode.env.clipboard.writeText(selected.url);
         vscode.window.showInformationMessage(`Copied: ${selected.url}`);
       }
+    })
+  );
+
+  // Command to view Lando logs
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.viewLandoLogs', async () => {
+      if (!activeLandoApp) {
+        vscode.window.showErrorMessage('No active Lando app selected');
+        return;
+      }
+
+      // Check if the app is running
+      const status = landoStatusMonitor?.getStatus(activeLandoApp);
+      if (!status?.running) {
+        const action = await vscode.window.showWarningMessage(
+          `${activeLandoApp.name} is not running. Start it first?`,
+          'Start',
+          'Cancel'
+        );
+        if (action === 'Start') {
+          await vscode.commands.executeCommand('extension.startLandoApp');
+          // Wait a bit for containers to be running
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } else {
+          return;
+        }
+      }
+
+      // Get available services
+      const services = await getLandoServices(activeLandoApp.rootPath);
+      
+      interface LogsQuickPickItem extends vscode.QuickPickItem {
+        service?: string;
+      }
+
+      const items: LogsQuickPickItem[] = [
+        {
+          label: '$(list-flat) All Services',
+          description: 'View logs from all services',
+          service: undefined
+        }
+      ];
+
+      // Add individual services
+      for (const service of services) {
+        items.push({
+          label: `$(server) ${service.name}`,
+          description: service.type,
+          service: service.name
+        });
+      }
+
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select which service logs to view',
+        title: `${activeLandoApp.name} Logs`
+      });
+
+      if (!selected) {
+        return;
+      }
+
+      // Build the lando logs command
+      const logArgs = ['logs', '-f'];  // -f to follow logs
+      if (selected.service) {
+        logArgs.push('-s', selected.service);
+      }
+
+      // Create a terminal for log viewing
+      const terminalName = selected.service
+        ? `Lando Logs: ${selected.service}`
+        : `Lando Logs: ${activeLandoApp.name}`;
+
+      const terminal = vscode.window.createTerminal({
+        name: terminalName,
+        cwd: activeLandoApp.rootPath,
+      });
+
+      // Send the lando logs command to the terminal
+      terminal.sendText(`lando ${logArgs.join(' ')}`);
+      terminal.show();
     })
   );
 }
