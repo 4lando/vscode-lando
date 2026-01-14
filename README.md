@@ -135,9 +135,14 @@ This is an open-source project. Contributions are welcome!
 3. Open in VS Code and press `F5` to start debugging
 
 ### Testing
-- Install the Extension Test Runner extension
-- Run tests via the Testing view or `Ctrl+Cmd+; A`
-- Run `npm run test` to run tests
+
+Run tests with `npm run test`.
+
+**Test Structure:**
+- **Unit tests** (`src/*.test.ts`): Co-located with source files, test pure logic without VS Code APIs
+- **Integration tests** (`src/test/suite/*.test.ts`): Require VS Code runtime, test extension behavior
+
+This pattern keeps unit tests discoverable alongside implementation while isolating integration tests that need the VS Code test harness.
 
 ## License
 

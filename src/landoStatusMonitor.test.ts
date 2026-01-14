@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import { suite, test, afterEach } from "mocha";
-import { LandoStatusMonitor, LandoContainer } from "../../landoStatusMonitor";
-import { LandoApp } from "../../landoAppDetector";
+import { LandoStatusMonitor, LandoContainer } from "./landoStatusMonitor";
+import { LandoApp } from "./landoAppDetector";
 import * as vscode from "vscode";
 
 /**

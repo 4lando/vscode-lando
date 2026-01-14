@@ -10,7 +10,9 @@ export function run(): Promise<void> {
 		timeout: 30000
 	});
 
-	const testsRoot = path.resolve(__dirname, '..');
+	// Point to the root 'out' directory to find both co-located tests (out/*.test.js)
+	// and integration tests (out/test/suite/*.test.js)
+	const testsRoot = path.resolve(__dirname, '../..');
 
 	return new Promise(async (c, e) => {
 		try {

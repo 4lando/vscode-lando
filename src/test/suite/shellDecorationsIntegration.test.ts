@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { ShellDecorationProvider } from '../shellDecorations';
+import { ShellDecorationProvider } from '../../shellDecorations';
 
 suite('Shell Decorations Test Suite', () => {
   let provider: ShellDecorationProvider;

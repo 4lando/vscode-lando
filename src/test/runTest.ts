@@ -28,7 +28,7 @@ async function main() {
 				launchArgs: [
 					tempFilePath,
 					'--disable-workspace-trust',
-					'--test-pattern=noActivation.test.js' // Pass the pattern to index.ts
+					'--test-pattern=test/suite/noActivation.test.js' // Pass the pattern to index.ts
 				]
 			});
 		} finally {
@@ -39,6 +39,7 @@ async function main() {
 		}
 
 		// Stage 2: Run full test suite with the workspace
+		// This includes co-located unit tests (*.test.js) and integration tests (test/suite/*.test.js)
 		console.log('Running Stage 2: Running full test suite with the workspace...');
 		await runTests({
 			extensionDevelopmentPath,
@@ -47,7 +48,8 @@ async function main() {
 			launchArgs: [
 				testWorkspaceFile,
 				'--disable-workspace-trust',
-				'--test-pattern=extension.test.js,unit.test.js' // Pass the pattern to index.ts
+				// Use glob brace expansion to match both co-located unit tests and integration tests
+				'--test-pattern={*.test.js,test/suite/{extension,schemaValidation,shellDecorationsIntegration,unit}.test.js}'
 			]
 		});
 	} catch (err) {
