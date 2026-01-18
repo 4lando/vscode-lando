@@ -49,7 +49,7 @@ async function main() {
 				testWorkspaceFile,
 				'--disable-workspace-trust',
 				// Use glob brace expansion to match both co-located unit tests and integration tests
-				'--test-pattern={*.test.js,test/suite/{extension,schemaValidation,shellDecorationsIntegration,unit}.test.js}'
+				'--test-pattern={*.test.js,test/suite/{extension,schemaValidation,shellDecorationsIntegration,toolingDetection,unit}.test.js}'
 			]
 		});
 	} catch (err) {

@@ -24,6 +24,7 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 - **Multi-App Support**: Detects multiple Lando apps in workspace, switch between them easily
 - **Status Monitoring**: Real-time status bar indicator with configurable polling interval
 - **Quick Actions**: Start, stop, restart apps from the status bar menu
+- **Tooling Commands**: Run detected tooling (drush, composer, artisan, wp-cli, etc.) from Quick Pick
 - **URL Access**: Open app URLs in browser or copy to clipboard
 - **Environment Setup**: Easily configure PHP environment in active terminals
 - **Settings Restoration**: Automatically restores original PHP settings on deactivation
@@ -81,6 +82,7 @@ Access these commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 - **"Lando: Restart App"** - Restart the active Lando app
 - **"Lando: Open App URL"** - Open the app URL in your default browser
 - **"Lando: Copy App URL"** - Copy the app URL to clipboard
+- **"Lando: Run Tooling Command"** - Run tooling commands (drush, composer, npm, etc.)
 - **"Select Lando App"** - Choose which Lando app to use when multiple are detected
 - **"Rescan for Lando Apps"** - Rescan the workspace for Lando apps
 - **"Refresh Lando Status"** - Manually refresh the status bar indicator

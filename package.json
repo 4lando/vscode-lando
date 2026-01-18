@@ -129,6 +129,10 @@
       {
         "command": "extension.viewLandoLogs",
         "title": "Lando: View Logs"
+      },
+      {
+        "command": "extension.runLandoTooling",
+        "title": "Lando: Run Tooling Command"
       }
     ],
     "configuration": {
@@ -201,6 +205,16 @@
           "minimum": 5,
           "maximum": 60,
           "description": "Timeout for status check commands in seconds"
+        },
+        "lando.tooling.showInQuickPick": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show tooling commands in the Lando quick pick menu"
+        },
+        "lando.tooling.showServiceInfo": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show service information in tooling command descriptions"
         }
       }
     }

@@ -5,7 +5,7 @@ import * as fs from "fs";
 import { activateShellDecorations } from "./shellDecorations";
 import { activateLandofileLanguageFeatures } from "./landofileLanguageFeatures";
 import { registerYamlReferenceProvider } from "./yamlReferenceProvider";
-import { LandoAppDetector, LandoApp } from "./landoAppDetector";
+import { LandoAppDetector, LandoApp, LandoTooling } from "./landoAppDetector";
 import { LandoStatusMonitor } from "./landoStatusMonitor";
 
 /** Line ending for terminal output */
@@ -414,6 +414,105 @@ async function getLandoServices(workspaceFolder: string): Promise<LandoService[]
   }
 
   return services;
+}
+
+/**
+ * Gets default tooling commands provided by Lando recipes
+ * @param recipe - The recipe type (e.g., 'drupal10', 'wordpress', 'lamp')
+ * @returns Array of default tooling commands for the recipe
+ */
+function getRecipeDefaultTooling(recipe?: string): LandoTooling[] {
+  if (!recipe) {
+    return [];
+  }
+
+  const defaultTooling: LandoTooling[] = [];
+
+  // Common tooling across most recipes
+  const commonTooling: LandoTooling[] = [
+    { name: 'php', service: 'appserver', description: 'Run PHP commands', isCustom: false },
+    { name: 'composer', service: 'appserver', description: 'Run Composer commands', isCustom: false },
+  ];
+
+  // Recipe-specific tooling
+  const recipeLower = recipe.toLowerCase();
+
+  if (recipeLower.startsWith('drupal') || recipeLower === 'backdrop') {
+    defaultTooling.push(
+      { name: 'drush', service: 'appserver', description: 'Run Drush commands', isCustom: false }
+    );
+  }
+
+  if (recipeLower === 'wordpress') {
+    defaultTooling.push(
+      { name: 'wp', service: 'appserver', description: 'Run WP-CLI commands', isCustom: false }
+    );
+  }
+
+  if (recipeLower === 'laravel') {
+    defaultTooling.push(
+      { name: 'artisan', service: 'appserver', description: 'Run Laravel Artisan commands', isCustom: false }
+    );
+  }
+
+  if (recipeLower === 'symfony') {
+    defaultTooling.push(
+      { name: 'console', service: 'appserver', description: 'Run Symfony console commands', isCustom: false }
+    );
+  }
+
+  if (recipeLower.includes('node') || recipeLower === 'mean' || recipeLower === 'lamp' || recipeLower === 'lemp') {
+    defaultTooling.push(
+      { name: 'node', service: 'appserver', description: 'Run Node.js commands', isCustom: false },
+      { name: 'npm', service: 'appserver', description: 'Run npm commands', isCustom: false },
+      { name: 'yarn', service: 'appserver', description: 'Run Yarn commands', isCustom: false }
+    );
+  }
+
+  // Add MySQL/MariaDB tooling if likely present
+  if (['lamp', 'lemp', 'drupal', 'drupal7', 'drupal8', 'drupal9', 'drupal10', 'drupal11', 
+       'wordpress', 'laravel', 'symfony', 'backdrop', 'joomla', 'magento2', 'pantheon'].includes(recipeLower)) {
+    defaultTooling.push(
+      { name: 'mysql', service: 'database', description: 'Run MySQL commands', isCustom: false }
+    );
+  }
+
+  return [...commonTooling, ...defaultTooling];
+}
+
+/**
+ * Runs a Lando tooling command in a terminal
+ * @param app - The Lando app to run the command in
+ * @param command - The tooling command name
+ * @param args - Optional arguments to pass to the command
+ */
+async function runLandoToolingCommand(
+  app: LandoApp,
+  command: string,
+  args?: string
+): Promise<void> {
+  // Build the full command
+  let fullCommand = `lando ${command}`;
+  if (args && args.trim()) {
+    fullCommand += ` ${args.trim()}`;
+  }
+
+  outputChannel.appendLine(`Running tooling command: ${fullCommand}`);
+
+  // Create a terminal for the command
+  const terminalName = `Lando: ${command}`;
+  
+  // Check if there's already a terminal with this name
+  const existingTerminal = vscode.window.terminals.find(t => t.name === terminalName);
+  
+  const terminal = existingTerminal || vscode.window.createTerminal({
+    name: terminalName,
+    cwd: app.rootPath,
+  });
+
+  // Send the command
+  terminal.sendText(fullCommand);
+  terminal.show();
 }
 
 /**
@@ -929,7 +1028,7 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       // Build quick actions menu
       interface QuickActionItem extends vscode.QuickPickItem {
-        action?: 'start' | 'stop' | 'restart' | 'refresh' | 'switch' | 'openUrl' | 'copyUrl' | 'viewLogs';
+        action?: 'start' | 'stop' | 'restart' | 'refresh' | 'switch' | 'openUrl' | 'copyUrl' | 'viewLogs' | 'runTooling';
         app?: LandoApp;
       }
 
@@ -971,6 +1070,16 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
             description: `Restart ${activeLandoApp.name}`,
             action: 'restart'
           });
+          // Show tooling option if tooling is available
+          const hasTooling = (activeLandoApp.tooling && activeLandoApp.tooling.length > 0) ||
+                             getRecipeDefaultTooling(activeLandoApp.recipe).length > 0;
+          if (hasTooling) {
+            items.push({
+              label: '$(terminal) Run Tooling',
+              description: `Run tooling commands (drush, composer, etc.)`,
+              action: 'runTooling'
+            });
+          }
         } else {
           items.push({
             label: '$(debug-start) Start',
@@ -1025,6 +1134,9 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
           break;
         case 'viewLogs':
           await vscode.commands.executeCommand('extension.viewLandoLogs');
+          break;
+        case 'runTooling':
+          await vscode.commands.executeCommand('extension.runLandoTooling');
           break;
         case 'switch':
           // Show app selection submenu
@@ -1400,6 +1512,86 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
       // Send the lando logs command to the terminal
       terminal.sendText(`lando ${logArgs.join(' ')}`);
       terminal.show();
+    })
+  );
+
+  // Command to run Lando tooling
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.runLandoTooling', async () => {
+      if (!activeLandoApp) {
+        vscode.window.showErrorMessage('No active Lando app selected');
+        return;
+      }
+
+      // Get tooling commands from the app config
+      const tooling = activeLandoApp.tooling || [];
+      
+      // Also get recipe-based default tooling
+      const recipeTooling = getRecipeDefaultTooling(activeLandoApp.recipe);
+      
+      // Combine app-defined tooling with recipe defaults (app tooling takes precedence)
+      const appToolingNames = new Set(tooling.map(t => t.name));
+      const combinedTooling = [
+        ...tooling,
+        ...recipeTooling.filter(t => !appToolingNames.has(t.name))
+      ];
+
+      if (combinedTooling.length === 0) {
+        vscode.window.showInformationMessage(
+          `No tooling commands detected for ${activeLandoApp.name}. ` +
+          `Add a 'tooling' section to your .lando.yml to define custom commands.`
+        );
+        return;
+      }
+
+      const config = vscode.workspace.getConfiguration('lando.tooling');
+      const showServiceInfo = config.get('showServiceInfo', true);
+
+      // Build quick pick items
+      interface ToolingQuickPickItem extends vscode.QuickPickItem {
+        tooling: LandoTooling;
+      }
+
+      const items: ToolingQuickPickItem[] = combinedTooling.map(tool => {
+        let description = '';
+        if (showServiceInfo && tool.service) {
+          description = `Service: ${tool.service}`;
+        }
+        if (tool.description) {
+          description = description ? `${description} - ${tool.description}` : tool.description;
+        }
+        if (!tool.isCustom) {
+          description = description ? `${description} (recipe default)` : 'Recipe default';
+        }
+
+        return {
+          label: `$(terminal) ${tool.name}`,
+          description,
+          detail: tool.cmd ? (Array.isArray(tool.cmd) ? tool.cmd.join(' ') : tool.cmd) : undefined,
+          tooling: tool
+        };
+      });
+
+      // Show quick pick
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: `Select a tooling command to run for ${activeLandoApp.name}`,
+        title: 'Lando Tooling',
+        matchOnDescription: true,
+        matchOnDetail: true
+      });
+
+      if (!selected) {
+        return;
+      }
+
+      // Ask for additional arguments
+      const args = await vscode.window.showInputBox({
+        prompt: `Enter arguments for 'lando ${selected.tooling.name}' (optional)`,
+        placeHolder: 'e.g., --help, status, etc.'
+      });
+
+      // Run the command in terminal
+      await runLandoToolingCommand(activeLandoApp, selected.tooling.name, args);
     })
   );
 }

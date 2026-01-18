@@ -3,4 +3,19 @@ recipe: drupal11
 config:
   webroot: .
   php: '8.3'
-  database: mysql:8.0 
+  database: mysql:8.0
+services:
+  appserver:
+    type: php:8.3
+  node:
+    type: node:20
+tooling:
+  phpunit:
+    service: appserver
+    cmd: vendor/bin/phpunit
+    description: Run PHPUnit tests
+  gulp:
+    service: node
+    cmd: gulp
+    dir: /app/frontend
+  custom-script: ./scripts/custom.sh

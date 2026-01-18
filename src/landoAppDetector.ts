@@ -11,6 +11,29 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as yaml from 'js-yaml';
+
+/**
+ * Represents a Lando tooling command definition
+ */
+export interface LandoTooling {
+  /** The command name (e.g., 'drush', 'composer', 'npm') */
+  name: string;
+  /** The service this tooling runs in */
+  service?: string;
+  /** The actual command to execute */
+  cmd?: string | string[];
+  /** Description of the tooling command */
+  description?: string;
+  /** Working directory for the command */
+  dir?: string;
+  /** Environment variables for the command */
+  env?: Record<string, string>;
+  /** User to run the command as */
+  user?: string;
+  /** Whether this is a custom tooling (from .lando.yml) or recipe-provided */
+  isCustom: boolean;
+}
 
 /**
  * Represents a detected Lando application
@@ -30,6 +53,8 @@ export interface LandoApp {
   recipe?: string;
   /** Services defined in the config */
   services?: string[];
+  /** Tooling commands defined in the config */
+  tooling?: LandoTooling[];
 }
 
 /**
@@ -309,38 +334,124 @@ export class LandoAppDetector implements vscode.Disposable {
     configPath: string,
     workspaceFolder: vscode.WorkspaceFolder
   ): LandoApp | null {
-    // Extract app name
-    const nameMatch = content.match(/^name:\s*['"]?([^'"#\n]+)['"]?/m);
-    if (!nameMatch) {
-      this.log(`No name found in ${configPath}`);
+    try {
+      // Parse YAML content
+      const config = yaml.load(content) as Record<string, unknown> | null;
+      
+      if (!config || typeof config !== 'object') {
+        this.log(`Invalid YAML in ${configPath}`);
+        return null;
+      }
+
+      // Extract app name (required)
+      const name = config.name as string | undefined;
+      if (!name || typeof name !== 'string') {
+        this.log(`No name found in ${configPath}`);
+        return null;
+      }
+
+      const cleanName = name.replace(/[-_]/g, '').toLowerCase();
+
+      // Extract recipe (optional)
+      const recipe = typeof config.recipe === 'string' ? config.recipe : undefined;
+
+      // Extract services (optional)
+      let services: string[] | undefined;
+      if (config.services && typeof config.services === 'object') {
+        services = Object.keys(config.services as Record<string, unknown>);
+      }
+
+      // Extract tooling (optional)
+      const tooling = this.parseTooling(config.tooling);
+
+      return {
+        name,
+        cleanName,
+        configPath,
+        rootPath: path.dirname(configPath),
+        workspaceFolder,
+        recipe,
+        services,
+        tooling
+      };
+    } catch (error) {
+      this.log(`Error parsing YAML in ${configPath}: ${error}`);
       return null;
     }
+  }
 
-    const name = nameMatch[1].trim();
-    const cleanName = name.replace(/[-_]/g, '').toLowerCase();
-
-    // Extract recipe (optional)
-    const recipeMatch = content.match(/^recipe:\s*['"]?([^'"#\n]+)['"]?/m);
-    const recipe = recipeMatch ? recipeMatch[1].trim() : undefined;
-
-    // Extract services (optional)
-    const servicesMatch = content.match(/^services:\s*\n((?:\s+[a-zA-Z0-9_-]+:.*\n?)+)/m);
-    let services: string[] | undefined;
-    if (servicesMatch) {
-      const servicesBlock = servicesMatch[1];
-      const serviceMatches = servicesBlock.matchAll(/^\s{2}([a-zA-Z0-9_-]+):/gm);
-      services = Array.from(serviceMatches, m => m[1]);
+  /**
+   * Parses tooling definitions from Lando config
+   */
+  private parseTooling(toolingConfig: unknown): LandoTooling[] | undefined {
+    if (!toolingConfig || typeof toolingConfig !== 'object') {
+      return undefined;
     }
 
-    return {
-      name,
-      cleanName,
-      configPath,
-      rootPath: path.dirname(configPath),
-      workspaceFolder,
-      recipe,
-      services
-    };
+    const toolingObj = toolingConfig as Record<string, unknown>;
+    const tooling: LandoTooling[] = [];
+
+    for (const [name, definition] of Object.entries(toolingObj)) {
+      if (definition === null || definition === undefined) {
+        continue;
+      }
+
+      // Handle simple string definitions (e.g., "drush: drush")
+      if (typeof definition === 'string') {
+        tooling.push({
+          name,
+          cmd: definition,
+          isCustom: true
+        });
+        continue;
+      }
+
+      // Handle object definitions
+      if (typeof definition === 'object') {
+        const def = definition as Record<string, unknown>;
+        tooling.push({
+          name,
+          service: typeof def.service === 'string' ? def.service : undefined,
+          cmd: this.parseToolingCmd(def.cmd),
+          description: typeof def.description === 'string' ? def.description : undefined,
+          dir: typeof def.dir === 'string' ? def.dir : undefined,
+          env: this.parseToolingEnv(def.env),
+          user: typeof def.user === 'string' ? def.user : undefined,
+          isCustom: true
+        });
+      }
+    }
+
+    return tooling.length > 0 ? tooling : undefined;
+  }
+
+  /**
+   * Parses tooling cmd which can be a string or array
+   */
+  private parseToolingCmd(cmd: unknown): string | string[] | undefined {
+    if (typeof cmd === 'string') {
+      return cmd;
+    }
+    if (Array.isArray(cmd)) {
+      return cmd.filter(c => typeof c === 'string') as string[];
+    }
+    return undefined;
+  }
+
+  /**
+   * Parses tooling environment variables
+   */
+  private parseToolingEnv(env: unknown): Record<string, string> | undefined {
+    if (!env || typeof env !== 'object') {
+      return undefined;
+    }
+    const result: Record<string, string> = {};
+    for (const [key, value] of Object.entries(env as Record<string, unknown>)) {
+      if (typeof value === 'string') {
+        result[key] = value;
+      }
+    }
+    return Object.keys(result).length > 0 ? result : undefined;
   }
 
   /**
