@@ -164,66 +164,16 @@ function extractTooling(content: string): LandoTooling[] | undefined {
 }
 
 /**
- * Gets default tooling commands provided by Lando recipes
- * Mirrors the logic in extension.ts
+ * Creates mock Lando-provided tooling for testing combined tooling logic.
+ * In the actual extension, this data comes from querying `lando` directly.
  */
-function getRecipeDefaultTooling(recipe?: string): LandoTooling[] {
-  if (!recipe) {
-    return [];
-  }
-
-  const defaultTooling: LandoTooling[] = [];
-
-  // Common tooling across most recipes
-  const commonTooling: LandoTooling[] = [
-    { name: 'php', service: 'appserver', description: 'Run PHP commands', isCustom: false },
-    { name: 'composer', service: 'appserver', description: 'Run Composer commands', isCustom: false },
+function createMockLandoTooling(): LandoTooling[] {
+  return [
+    { name: 'php', description: 'Runs php commands', isCustom: false },
+    { name: 'composer', description: 'Runs composer commands', isCustom: false },
+    { name: 'drush', description: 'Runs drush commands', isCustom: false },
+    { name: 'mysql', description: 'Drops into a MySQL shell', isCustom: false },
   ];
-
-  // Recipe-specific tooling
-  const recipeLower = recipe.toLowerCase();
-
-  if (recipeLower.startsWith('drupal') || recipeLower === 'backdrop') {
-    defaultTooling.push(
-      { name: 'drush', service: 'appserver', description: 'Run Drush commands', isCustom: false }
-    );
-  }
-
-  if (recipeLower === 'wordpress') {
-    defaultTooling.push(
-      { name: 'wp', service: 'appserver', description: 'Run WP-CLI commands', isCustom: false }
-    );
-  }
-
-  if (recipeLower === 'laravel') {
-    defaultTooling.push(
-      { name: 'artisan', service: 'appserver', description: 'Run Laravel Artisan commands', isCustom: false }
-    );
-  }
-
-  if (recipeLower === 'symfony') {
-    defaultTooling.push(
-      { name: 'console', service: 'appserver', description: 'Run Symfony console commands', isCustom: false }
-    );
-  }
-
-  if (recipeLower.includes('node') || recipeLower === 'mean' || recipeLower === 'lamp' || recipeLower === 'lemp') {
-    defaultTooling.push(
-      { name: 'node', service: 'appserver', description: 'Run Node.js commands', isCustom: false },
-      { name: 'npm', service: 'appserver', description: 'Run npm commands', isCustom: false },
-      { name: 'yarn', service: 'appserver', description: 'Run Yarn commands', isCustom: false }
-    );
-  }
-
-  // Add MySQL/MariaDB tooling if likely present
-  if (['lamp', 'lemp', 'drupal', 'drupal7', 'drupal8', 'drupal9', 'drupal10', 'drupal11', 
-       'wordpress', 'laravel', 'symfony', 'backdrop', 'joomla', 'magento2', 'pantheon'].includes(recipeLower)) {
-    defaultTooling.push(
-      { name: 'mysql', service: 'database', description: 'Run MySQL commands', isCustom: false }
-    );
-  }
-
-  return [...commonTooling, ...defaultTooling];
 }
 
 suite("LandoAppDetector Test Suite", () => {
@@ -816,86 +766,8 @@ tooling:
     });
   });
 
-  suite("getRecipeDefaultTooling", () => {
-    test("Should return empty array for undefined recipe", () => {
-      const tooling = getRecipeDefaultTooling(undefined);
-      assert.deepStrictEqual(tooling, []);
-    });
-
-    test("Should return common tooling for any recipe", () => {
-      const tooling = getRecipeDefaultTooling("lamp");
-      const names = tooling.map(t => t.name);
-      assert.ok(names.includes("php"), "Should include php");
-      assert.ok(names.includes("composer"), "Should include composer");
-    });
-
-    test("Should return drush for drupal recipes", () => {
-      for (const recipe of ["drupal10", "drupal9", "drupal8", "drupal7", "Drupal10"]) {
-        const tooling = getRecipeDefaultTooling(recipe);
-        const names = tooling.map(t => t.name);
-        assert.ok(names.includes("drush"), `Should include drush for ${recipe}`);
-      }
-    });
-
-    test("Should return wp for wordpress recipe", () => {
-      const tooling = getRecipeDefaultTooling("wordpress");
-      const names = tooling.map(t => t.name);
-      assert.ok(names.includes("wp"), "Should include wp");
-    });
-
-    test("Should return artisan for laravel recipe", () => {
-      const tooling = getRecipeDefaultTooling("laravel");
-      const names = tooling.map(t => t.name);
-      assert.ok(names.includes("artisan"), "Should include artisan");
-    });
-
-    test("Should return console for symfony recipe", () => {
-      const tooling = getRecipeDefaultTooling("symfony");
-      const names = tooling.map(t => t.name);
-      assert.ok(names.includes("console"), "Should include console");
-    });
-
-    test("Should return node tooling for lamp recipe", () => {
-      const tooling = getRecipeDefaultTooling("lamp");
-      const names = tooling.map(t => t.name);
-      assert.ok(names.includes("node"), "Should include node");
-      assert.ok(names.includes("npm"), "Should include npm");
-      assert.ok(names.includes("yarn"), "Should include yarn");
-    });
-
-    test("Should return mysql for database recipes", () => {
-      for (const recipe of ["lamp", "drupal10", "wordpress", "laravel"]) {
-        const tooling = getRecipeDefaultTooling(recipe);
-        const names = tooling.map(t => t.name);
-        assert.ok(names.includes("mysql"), `Should include mysql for ${recipe}`);
-      }
-    });
-
-    test("Should return drush for backdrop recipe", () => {
-      const tooling = getRecipeDefaultTooling("backdrop");
-      const names = tooling.map(t => t.name);
-      assert.ok(names.includes("drush"), "Should include drush for backdrop");
-    });
-
-    test("Should mark all default tooling as isCustom: false", () => {
-      const tooling = getRecipeDefaultTooling("drupal10");
-      for (const tool of tooling) {
-        assert.strictEqual(tool.isCustom, false, `${tool.name} should have isCustom: false`);
-      }
-    });
-
-    test("Should be case-insensitive for recipe names", () => {
-      const tooling1 = getRecipeDefaultTooling("WordPress");
-      const tooling2 = getRecipeDefaultTooling("wordpress");
-      const names1 = tooling1.map(t => t.name);
-      const names2 = tooling2.map(t => t.name);
-      assert.ok(names1.includes("wp"), "Should handle uppercase WordPress");
-      assert.ok(names2.includes("wp"), "Should handle lowercase wordpress");
-    });
-  });
-
   suite("Combined Tooling Logic", () => {
-    test("Should combine custom tooling with recipe defaults", () => {
+    test("Should combine custom tooling with Lando-provided tooling", () => {
       const content = `name: myapp
 recipe: drupal10
 tooling:
@@ -904,22 +776,23 @@ tooling:
     cmd: vendor/bin/phpunit`;
       
       const customTooling = extractTooling(content) || [];
-      const recipeTooling = getRecipeDefaultTooling("drupal10");
+      // In the actual extension, this comes from querying `lando` directly
+      const landoTooling = createMockLandoTooling();
       
       // Combine: custom takes precedence
-      const customNames = new Set(customTooling.map(t => t.name));
+      const customNames = new Set(customTooling.map((t: LandoTooling) => t.name));
       const combined = [
         ...customTooling,
-        ...recipeTooling.filter(t => !customNames.has(t.name))
+        ...landoTooling.filter((t: LandoTooling) => !customNames.has(t.name))
       ];
       
-      const names = combined.map(t => t.name);
+      const names = combined.map((t: LandoTooling) => t.name);
       assert.ok(names.includes("phpunit"), "Should include custom phpunit");
-      assert.ok(names.includes("drush"), "Should include recipe drush");
-      assert.ok(names.includes("composer"), "Should include recipe composer");
+      assert.ok(names.includes("drush"), "Should include Lando-provided drush");
+      assert.ok(names.includes("composer"), "Should include Lando-provided composer");
     });
 
-    test("Custom tooling should override recipe defaults with same name", () => {
+    test("Custom tooling should override Lando-provided tooling with same name", () => {
       const content = `name: myapp
 recipe: drupal10
 tooling:
@@ -929,21 +802,29 @@ tooling:
     description: Custom Drush`;
       
       const customTooling = extractTooling(content) || [];
-      const recipeTooling = getRecipeDefaultTooling("drupal10");
+      // In the actual extension, this comes from querying `lando` directly
+      const landoTooling = createMockLandoTooling();
       
       // Combine: custom takes precedence
-      const customNames = new Set(customTooling.map(t => t.name));
+      const customNames = new Set(customTooling.map((t: LandoTooling) => t.name));
       const combined = [
         ...customTooling,
-        ...recipeTooling.filter(t => !customNames.has(t.name))
+        ...landoTooling.filter((t: LandoTooling) => !customNames.has(t.name))
       ];
       
       // Should only have one drush entry
-      const drushEntries = combined.filter(t => t.name === "drush");
+      const drushEntries = combined.filter((t: LandoTooling) => t.name === "drush");
       assert.strictEqual(drushEntries.length, 1, "Should have exactly one drush entry");
       assert.strictEqual(drushEntries[0].cmd, "/custom/path/drush", "Should use custom drush command");
       assert.strictEqual(drushEntries[0].description, "Custom Drush", "Should use custom description");
       assert.strictEqual(drushEntries[0].isCustom, true, "Should be marked as custom");
+    });
+
+    test("Lando-provided tooling should be marked as isCustom: false", () => {
+      const landoTooling = createMockLandoTooling();
+      for (const tool of landoTooling) {
+        assert.strictEqual(tool.isCustom, false, `${tool.name} should have isCustom: false`);
+      }
     });
   });
 });

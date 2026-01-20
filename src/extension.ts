@@ -417,67 +417,126 @@ async function getLandoServices(workspaceFolder: string): Promise<LandoService[]
 }
 
 /**
- * Gets default tooling commands provided by Lando recipes
- * @param recipe - The recipe type (e.g., 'drupal10', 'wordpress', 'lamp')
- * @returns Array of default tooling commands for the recipe
+ * Core Lando commands that are not tooling commands.
+ * These are filtered out when querying available tooling.
  */
-function getRecipeDefaultTooling(recipe?: string): LandoTooling[] {
-  if (!recipe) {
-    return [];
-  }
+const LANDO_CORE_COMMANDS = new Set([
+  'config',
+  'destroy',
+  'exec',
+  'info',
+  'init',
+  'list',
+  'logs',
+  'poweroff',
+  'rebuild',
+  'restart',
+  'start',
+  'stop',
+  'update',
+  'version',
+  'share',
+  'ssh',
+  'db-export',
+  'db-import',
+]);
 
-  const defaultTooling: LandoTooling[] = [];
+/**
+ * Queries Lando to get available tooling commands for an app.
+ * This runs `lando` with no arguments in the app directory and parses the output
+ * to extract tooling commands (filtering out core Lando commands).
+ * 
+ * @param appRootPath - The root path of the Lando app
+ * @returns Promise resolving to array of available tooling commands
+ */
+async function getLandoAvailableTooling(appRootPath: string): Promise<LandoTooling[]> {
+  return new Promise((resolve) => {
+    const tooling: LandoTooling[] = [];
+    
+    const landoProcess = childProcess.spawn('lando', [], {
+      cwd: appRootPath,
+      stdio: 'pipe',
+    });
 
-  // Common tooling across most recipes
-  const commonTooling: LandoTooling[] = [
-    { name: 'php', service: 'appserver', description: 'Run PHP commands', isCustom: false },
-    { name: 'composer', service: 'appserver', description: 'Run Composer commands', isCustom: false },
-  ];
+    let stdout = '';
+    let stderr = '';
 
-  // Recipe-specific tooling
-  const recipeLower = recipe.toLowerCase();
+    landoProcess.stdout.on('data', (data: Buffer) => {
+      stdout += data.toString();
+    });
 
-  if (recipeLower.startsWith('drupal') || recipeLower === 'backdrop') {
-    defaultTooling.push(
-      { name: 'drush', service: 'appserver', description: 'Run Drush commands', isCustom: false }
-    );
-  }
+    landoProcess.stderr.on('data', (data: Buffer) => {
+      stderr += data.toString();
+    });
 
-  if (recipeLower === 'wordpress') {
-    defaultTooling.push(
-      { name: 'wp', service: 'appserver', description: 'Run WP-CLI commands', isCustom: false }
-    );
-  }
+    landoProcess.on('error', (error) => {
+      outputChannel.appendLine(`Error querying Lando tooling: ${error.message}`);
+      resolve([]);
+    });
 
-  if (recipeLower === 'laravel') {
-    defaultTooling.push(
-      { name: 'artisan', service: 'appserver', description: 'Run Laravel Artisan commands', isCustom: false }
-    );
-  }
+    landoProcess.on('close', (code) => {
+      if (code !== 0 && !stdout) {
+        outputChannel.appendLine(`Lando tooling query failed with code ${code}: ${stderr}`);
+        resolve([]);
+        return;
+      }
 
-  if (recipeLower === 'symfony') {
-    defaultTooling.push(
-      { name: 'console', service: 'appserver', description: 'Run Symfony console commands', isCustom: false }
-    );
-  }
+      try {
+        // Parse the output to extract commands
+        // Format is like: "  lando composer          Runs composer commands"
+        const lines = stdout.split('\n');
+        let inCommandsSection = false;
 
-  if (recipeLower.includes('node') || recipeLower === 'mean' || recipeLower === 'lamp' || recipeLower === 'lemp') {
-    defaultTooling.push(
-      { name: 'node', service: 'appserver', description: 'Run Node.js commands', isCustom: false },
-      { name: 'npm', service: 'appserver', description: 'Run npm commands', isCustom: false },
-      { name: 'yarn', service: 'appserver', description: 'Run Yarn commands', isCustom: false }
-    );
-  }
+        for (const line of lines) {
+          // Detect start of Commands section
+          if (line.trim() === 'Commands:') {
+            inCommandsSection = true;
+            continue;
+          }
 
-  // Add MySQL/MariaDB tooling if likely present
-  if (['lamp', 'lemp', 'drupal', 'drupal7', 'drupal8', 'drupal9', 'drupal10', 'drupal11', 
-       'wordpress', 'laravel', 'symfony', 'backdrop', 'joomla', 'magento2', 'pantheon'].includes(recipeLower)) {
-    defaultTooling.push(
-      { name: 'mysql', service: 'database', description: 'Run MySQL commands', isCustom: false }
-    );
-  }
+          // Detect end of Commands section (Options: or Examples:)
+          if (line.trim() === 'Options:' || line.trim() === 'Examples:') {
+            inCommandsSection = false;
+            continue;
+          }
 
-  return [...commonTooling, ...defaultTooling];
+          if (!inCommandsSection) {
+            continue;
+          }
+
+          // Parse command lines like "  lando composer          Runs composer commands"
+          const match = line.match(/^\s+lando\s+(\S+)(?:\s+\[.*?\])?\s+(.*?)\s*$/);
+          if (match) {
+            const [, commandName, description] = match;
+            
+            // Skip core Lando commands
+            if (LANDO_CORE_COMMANDS.has(commandName)) {
+              continue;
+            }
+
+            tooling.push({
+              name: commandName,
+              description: description || undefined,
+              isCustom: false,
+            });
+          }
+        }
+
+        outputChannel.appendLine(`Found ${tooling.length} available tooling commands from Lando`);
+        resolve(tooling);
+      } catch (error) {
+        outputChannel.appendLine(`Error parsing Lando tooling output: ${error}`);
+        resolve([]);
+      }
+    });
+
+    // Set a timeout in case Lando hangs
+    setTimeout(() => {
+      landoProcess.kill();
+      outputChannel.appendLine('Lando tooling query timed out');
+      resolve([]);
+    }, 10000);
+  });
 }
 
 /**
@@ -1070,16 +1129,13 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
             description: `Restart ${activeLandoApp.name}`,
             action: 'restart'
           });
-          // Show tooling option if tooling is available
-          const hasTooling = (activeLandoApp.tooling && activeLandoApp.tooling.length > 0) ||
-                             getRecipeDefaultTooling(activeLandoApp.recipe).length > 0;
-          if (hasTooling) {
-            items.push({
-              label: '$(terminal) Run Tooling',
-              description: `Run tooling commands (drush, composer, etc.)`,
-              action: 'runTooling'
-            });
-          }
+          // Always show tooling option - Lando will be queried for available commands
+          // Even without custom tooling in .lando.yml, recipes provide default commands
+          items.push({
+            label: '$(terminal) Run Tooling',
+            description: `Run tooling commands (drush, composer, etc.)`,
+            action: 'runTooling'
+          });
         } else {
           items.push({
             label: '$(debug-start) Start',
@@ -1523,17 +1579,17 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         return;
       }
 
-      // Get tooling commands from the app config
-      const tooling = activeLandoApp.tooling || [];
+      // Get tooling commands from the app config (custom tooling in .lando.yml)
+      const customTooling = activeLandoApp.tooling || [];
       
-      // Also get recipe-based default tooling
-      const recipeTooling = getRecipeDefaultTooling(activeLandoApp.recipe);
+      // Query Lando for available tooling commands (includes recipe defaults)
+      const landoTooling = await getLandoAvailableTooling(activeLandoApp.rootPath);
       
-      // Combine app-defined tooling with recipe defaults (app tooling takes precedence)
-      const appToolingNames = new Set(tooling.map(t => t.name));
+      // Combine: custom tooling takes precedence over Lando-provided tooling
+      const customToolingNames = new Set(customTooling.map((t: LandoTooling) => t.name));
       const combinedTooling = [
-        ...tooling,
-        ...recipeTooling.filter(t => !appToolingNames.has(t.name))
+        ...customTooling,
+        ...landoTooling.filter((t: LandoTooling) => !customToolingNames.has(t.name))
       ];
 
       if (combinedTooling.length === 0) {
@@ -1589,6 +1645,12 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         prompt: `Enter arguments for 'lando ${selected.tooling.name}' (optional)`,
         placeHolder: 'e.g., --help, status, etc.'
       });
+
+      // If user pressed Escape (undefined), cancel the operation
+      // Empty string means they submitted without typing anything (run without args)
+      if (args === undefined) {
+        return;
+      }
 
       // Run the command in terminal
       await runLandoToolingCommand(activeLandoApp, selected.tooling.name, args);
