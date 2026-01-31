@@ -7,6 +7,12 @@ import { activateLandofileLanguageFeatures } from "./landofileLanguageFeatures";
 import { registerYamlReferenceProvider } from "./yamlReferenceProvider";
 import { LandoAppDetector, LandoApp, LandoTooling } from "./landoAppDetector";
 import { LandoStatusMonitor } from "./landoStatusMonitor";
+import { 
+  LANDO_DOCUMENTATION, 
+  DOCUMENTATION_CATEGORIES,
+  getContextAwareDocumentation,
+  LandoDocLink 
+} from "./landoDocumentation";
 
 /** Line ending for terminal output */
 const CRLF = "\r\n";
@@ -440,6 +446,70 @@ const LANDO_CORE_COMMANDS = new Set([
   'db-export',
   'db-import',
 ]);
+
+/**
+ * Opens Lando documentation with context-aware suggestions
+ * Shows a Quick Pick with categorized documentation links
+ */
+async function openLandoDocumentation(): Promise<void> {
+  interface DocQuickPickItem extends vscode.QuickPickItem {
+    url?: string;
+    category?: string;
+  }
+
+  const items: DocQuickPickItem[] = [];
+
+  // Add context-aware suggestions at the top if an app is active
+  const contextDocs = getContextAwareDocumentation(activeLandoApp);
+  if (contextDocs.length > 0) {
+    items.push({
+      label: 'Relevant to Your App',
+      kind: vscode.QuickPickItemKind.Separator
+    });
+    for (const doc of contextDocs) {
+      items.push({
+        label: `${doc.icon || '$(book)'} ${doc.label}`,
+        description: doc.description,
+        url: doc.url,
+        category: doc.category
+      });
+    }
+  }
+
+  // Group remaining docs by category (using imported DOCUMENTATION_CATEGORIES)
+  for (const cat of DOCUMENTATION_CATEGORIES) {
+    const catDocs = LANDO_DOCUMENTATION.filter(d => d.category === cat.key);
+    if (catDocs.length > 0) {
+      items.push({
+        label: `${cat.icon} ${cat.label}`,
+        kind: vscode.QuickPickItemKind.Separator
+      });
+      for (const doc of catDocs) {
+        // Skip if already added in context section
+        if (contextDocs.some(cd => cd.url === doc.url)) {
+          continue;
+        }
+        items.push({
+          label: `${doc.icon || '$(book)'} ${doc.label}`,
+          description: doc.description,
+          url: doc.url,
+          category: doc.category
+        });
+      }
+    }
+  }
+
+  const selected = await vscode.window.showQuickPick(items, {
+    placeHolder: 'Search Lando documentation...',
+    title: 'Lando Documentation',
+    matchOnDescription: true
+  });
+
+  if (selected?.url) {
+    await vscode.env.openExternal(vscode.Uri.parse(selected.url));
+    outputChannel.appendLine(`Opened documentation: ${selected.url}`);
+  }
+}
 
 /**
  * Queries Lando to get available tooling commands for an app.
@@ -1087,7 +1157,7 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       // Build quick actions menu
       interface QuickActionItem extends vscode.QuickPickItem {
-        action?: 'start' | 'stop' | 'restart' | 'refresh' | 'switch' | 'openUrl' | 'copyUrl' | 'viewLogs' | 'runTooling';
+        action?: 'start' | 'stop' | 'restart' | 'refresh' | 'switch' | 'openUrl' | 'copyUrl' | 'viewLogs' | 'runTooling' | 'documentation';
         app?: LandoApp;
       }
 
@@ -1149,6 +1219,12 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
           description: 'Refresh the current status',
           action: 'refresh'
         });
+        
+        items.push({
+          label: '$(book) Documentation',
+          description: 'Open Lando documentation',
+          action: 'documentation'
+        });
       }
       
       // If there are multiple apps, add switch option
@@ -1157,6 +1233,15 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
           label: '$(list-selection) Switch App',
           description: `${apps.length} apps available`,
           action: 'switch'
+        });
+      }
+      
+      // Always show documentation option (even when no app is selected)
+      if (!activeLandoApp) {
+        items.push({
+          label: '$(book) Documentation',
+          description: 'Open Lando documentation',
+          action: 'documentation'
         });
       }
 
@@ -1193,6 +1278,9 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
           break;
         case 'runTooling':
           await vscode.commands.executeCommand('extension.runLandoTooling');
+          break;
+        case 'documentation':
+          await vscode.commands.executeCommand('extension.openLandoDocumentation');
           break;
         case 'switch':
           // Show app selection submenu
@@ -1667,6 +1755,21 @@ function registerBasicCommands(context: vscode.ExtensionContext) {
 
   // Register the run Lando command
   registerRunLandoCommand(context, writeEmitter);
+  
+  // Register the documentation command
+  registerDocumentationCommand(context);
+}
+
+/**
+ * Registers the Lando documentation command
+ * @param context - The extension context
+ */
+function registerDocumentationCommand(context: vscode.ExtensionContext): void {
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.openLandoDocumentation', async () => {
+      await openLandoDocumentation();
+    })
+  );
 }
 
 /**
@@ -1684,6 +1787,9 @@ function registerAllCommands(
   
   // Register basic commands
   registerRunLandoCommand(context, writeEmitter);
+  
+  // Register the documentation command
+  registerDocumentationCommand(context);
   
   // Register PHP-specific commands
   registerPhpCommands(context, workspaceFolder, landoConfig);

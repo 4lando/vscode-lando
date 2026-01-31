@@ -33,7 +33,19 @@ Use these commands to build, lint, and test your changes.
 -   **Test**: `npm run test`
     -   Runs the linter and build, then executes the test suite. **Run this after any code change.**
 
-## 4. Agent Guidelines & Best Practices
+## 4. Testing Structure
+
+This project follows a specific pattern for organizing tests:
+
+-   **Unit tests** (`src/*.test.ts`): Co-located with source files. These test pure logic and do NOT require VS Code APIs. Place these next to the module they test (e.g., `src/landoDocumentation.test.ts` tests `src/landoDocumentation.ts`).
+-   **Integration tests** (`src/test/suite/*.test.ts`): Require VS Code runtime. These test extension behavior, command registration, and VS Code API interactions. Place these in the `src/test/suite/` directory.
+
+**When adding tests:**
+1. If testing pure logic (data structures, utility functions, parsing) → create a co-located unit test file
+2. If testing VS Code integration (commands, UI, extension activation) → add to `src/test/suite/`
+3. If a feature has both → split tests between co-located unit tests and integration tests
+
+## 5. Agent Guidelines & Best Practices
 
 -   **Leverage Your Tools:** Be resourceful. Use your available tools and CLI commands (`ls`, `grep`, `find`, `curl`, `node -e`, `npx`, `docker`, etc.) to explore the codebase, gather context, and troubleshoot issues. Don't be afraid to experiment with commands to overcome challenges.
 -   **Manipulate Files with Tools:** For file system operations like moving, renaming, or deleting files, use shell commands like `mv`, `cp`, or `rm` instead of reading and writing file content manually.

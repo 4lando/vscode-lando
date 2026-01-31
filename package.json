@@ -133,6 +133,10 @@
       {
         "command": "extension.runLandoTooling",
         "title": "Lando: Run Tooling Command"
+      },
+      {
+        "command": "extension.openLandoDocumentation",
+        "title": "Lando: Open Documentation"
       }
     ],
     "configuration": {

@@ -30,6 +30,12 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 - **Settings Restoration**: Automatically restores original PHP settings on deactivation
 - **Cross-platform**: Works on Windows, macOS, and Linux
 
+#### 📚 **Documentation Access**
+- **Quick Access**: Open Lando documentation directly from VS Code (`Ctrl+Shift+P` → "Lando: Open Documentation")
+- **Categorized Docs**: Browse documentation organized by Getting Started, Configuration, Recipes, Services, and Troubleshooting
+- **Context-Aware**: Shows relevant docs based on your active app's recipe and services
+- **40+ Links**: Comprehensive coverage including all recipes, services, and common troubleshooting topics
+
 #### 📝 **Enhanced Landofile Support**
 - **Independent Language**: Custom Landofile language - no external YAML extensions required
 - **File Detection**: Supports `.lando.yml` and `.lando.*.yml` files (e.g., `.lando.local.yml`)
@@ -92,6 +98,7 @@ Access these commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 - **"Check Lando Status"** - Check if your Lando app is running
 - **"Refresh PHP Configuration"** - Refresh PHP settings
 - **"Test PHP Wrapper"** - Test PHP integration in a new terminal
+- **"Lando: Open Documentation"** - Browse categorized Lando docs with context-aware suggestions
 
 ## Requirements
 
