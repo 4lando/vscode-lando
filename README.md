@@ -30,6 +30,15 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 - **Settings Restoration**: Automatically restores original PHP settings on deactivation
 - **Cross-platform**: Works on Windows, macOS, and Linux
 
+#### 🖱️ **Context Menu Integration**
+- **Right-Click Actions**: Access Lando commands directly from context menus
+- **Explorer Context Menu**: Right-click on files/folders in the explorer to see Lando options
+- **Editor Context Menu**: Right-click in `.lando.yml` files for quick access to commands
+- **Smart Visibility**: Menu items adapt based on app state (shows "Start" when stopped, "Stop" when running)
+- **Organized Submenu**: All commands grouped under a clean "Lando" submenu
+- **SSH Terminal**: Open a terminal directly connected to any Lando service
+- **Rebuild Command**: Rebuild your Lando app with a confirmation dialog
+
 #### 📚 **Documentation Access**
 - **Quick Access**: Open Lando documentation directly from VS Code (`Ctrl+Shift+P` → "Lando: Open Documentation")
 - **Categorized Docs**: Browse documentation organized by Getting Started, Configuration, Recipes, Services, and Troubleshooting
@@ -55,7 +64,6 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 ### 🚀 Future Roadmap
 - Automatic Xdebug configuration
 - App creation wizard (GUI for `lando init`)
-- Context menu integration for common tasks
 - Integration with hosting platforms (Pantheon, Acquia, etc.)
 
 ## Installation
@@ -86,8 +94,11 @@ Access these commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 - **"Lando: Start App"** - Start the active Lando app
 - **"Lando: Stop App"** - Stop the active Lando app
 - **"Lando: Restart App"** - Restart the active Lando app
+- **"Lando: Rebuild App"** - Rebuild the active Lando app (destroys and recreates containers)
 - **"Lando: Open App URL"** - Open the app URL in your default browser
 - **"Lando: Copy App URL"** - Copy the app URL to clipboard
+- **"Lando: Open Terminal (SSH)"** - Open a terminal connected to a Lando service
+- **"Lando: View Logs"** - View logs from Lando services
 - **"Lando: Run Tooling Command"** - Run tooling commands (drush, composer, npm, etc.)
 - **"Select Lando App"** - Choose which Lando app to use when multiple are detected
 - **"Rescan for Lando Apps"** - Rescan the workspace for Lando apps

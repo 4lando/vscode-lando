@@ -709,6 +709,71 @@ async function restartLando(
 }
 
 /**
+ * Rebuilds Lando app (destructive - recreates containers)
+ * @param workspaceFolder - The workspace folder path
+ * @param notification - Optional notification promise for cancellation
+ * @returns Promise resolving to true if rebuilt successfully, false otherwise
+ */
+async function rebuildLando(
+  workspaceFolder: string,
+  notification?: Thenable<string | undefined>
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    outputChannel.appendLine("Rebuilding Lando...");
+    
+    // Use -y flag to skip confirmation prompt
+    const landoProcess = childProcess.spawn("lando", ["rebuild", "-y"], {
+      cwd: workspaceFolder,
+      stdio: "pipe",
+    });
+
+    let output = "";
+
+    landoProcess.stdout.on("data", (data: Buffer) => {
+      const message = data.toString();
+      output += message;
+      outputChannel.appendLine(`Lando output: ${message.trim()}`);
+    });
+
+    // Note: Many CLI tools (including Lando) output progress info to stderr,
+    // so we log it but don't treat it as an error. Exit code is the source of truth.
+    landoProcess.stderr.on("data", (data: Buffer) => {
+      const message = data.toString();
+      output += message;
+      outputChannel.appendLine(`Lando stderr: ${message.trim()}`);
+    });
+
+    landoProcess.on("close", (code: number) => {
+      outputChannel.appendLine(`Lando process exited with code ${code}`);
+      
+      // Use exit code as the sole indicator of success - stderr output is not an error indicator
+      if (code === 0) {
+        resolve(true);
+      } else {
+        outputChannel.appendLine(`Lando failed to rebuild (exit code ${code}): ${output}`);
+        resolve(false);
+      }
+    });
+
+    landoProcess.on("error", (error: Error) => {
+      outputChannel.appendLine(`Error rebuilding Lando: ${error.message}`);
+      resolve(false);
+    });
+
+    // Handle cancellation
+    if (notification) {
+      notification.then((selection) => {
+        if (selection === "Cancel") {
+          outputChannel.appendLine("Lando rebuild cancelled by user");
+          landoProcess.kill();
+          resolve(false);
+        }
+      });
+    }
+  });
+}
+
+/**
  * Gets the path to the PHP wrapper script
  * @returns The path to the appropriate PHP wrapper script
  */
@@ -1057,10 +1122,14 @@ function convertAppToConfig(app: LandoApp): LandoConfig {
 }
 
 /**
- * Sets the active Lando app
+ * Sets the active Lando app and updates context for menu visibility
  */
 function setActiveLandoApp(app: LandoApp | undefined): void {
   activeLandoApp = app;
+  
+  // Set context for 'when' clauses in menus
+  vscode.commands.executeCommand('setContext', 'lando:hasActiveApp', app !== undefined);
+  
   updateLandoAppsStatusBar();
   
   if (app) {
@@ -1084,7 +1153,7 @@ function setupLandoAppsStatusBar(context: vscode.ExtensionContext): void {
 }
 
 /**
- * Updates the Lando apps status bar item
+ * Updates the Lando apps status bar item and context values for menu visibility
  */
 function updateLandoAppsStatusBar(): void {
   if (!landoAppsStatusBarItem || !landoAppDetector) {
@@ -1093,7 +1162,11 @@ function updateLandoAppsStatusBar(): void {
 
   const appCount = landoAppDetector.getAppCount();
   
+  // Set context for 'when' clauses in menus
+  vscode.commands.executeCommand('setContext', 'lando:hasApps', appCount > 0);
+  
   if (appCount === 0) {
+    vscode.commands.executeCommand('setContext', 'lando:appRunning', false);
     landoAppsStatusBarItem.hide();
     return;
   }
@@ -1102,6 +1175,9 @@ function updateLandoAppsStatusBar(): void {
     // Get status from the status monitor
     const status = landoStatusMonitor?.getStatus(activeLandoApp);
     const isRunning = status?.running ?? false;
+    
+    // Set running context for 'when' clauses in menus
+    vscode.commands.executeCommand('setContext', 'lando:appRunning', isRunning);
     
     // Use different icons for running vs stopped
     const icon = isRunning ? '$(debug-start)' : '$(debug-stop)';
@@ -1128,6 +1204,8 @@ function updateLandoAppsStatusBar(): void {
     }
     landoAppsStatusBarItem.tooltip = tooltip;
   } else {
+    // No active app selected
+    vscode.commands.executeCommand('setContext', 'lando:appRunning', false);
     landoAppsStatusBarItem.text = `$(server) ${appCount} Lando app${appCount > 1 ? 's' : ''}`;
     landoAppsStatusBarItem.tooltip = `${appCount} Lando app${appCount > 1 ? 's' : ''} detected - Click to select`;
     landoAppsStatusBarItem.backgroundColor = undefined;
@@ -1462,6 +1540,136 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
       } else {
         vscode.window.showErrorMessage(`Failed to restart ${activeLandoApp.name}`);
       }
+    })
+  );
+
+  // Command to rebuild the active Lando app (destructive)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.rebuildLandoApp', async () => {
+      if (!activeLandoApp) {
+        vscode.window.showErrorMessage('No active Lando app selected');
+        return;
+      }
+
+      // Warn user about destructive action
+      const confirm = await vscode.window.showWarningMessage(
+        `Rebuild will destroy and recreate ${activeLandoApp.name}'s containers. ` +
+        `Local data in containers will be lost. Continue?`,
+        { modal: true },
+        'Rebuild'
+      );
+
+      if (confirm !== 'Rebuild') {
+        return;
+      }
+
+      const notification = vscode.window.showInformationMessage(
+        `Rebuilding ${activeLandoApp.name}... This may take several minutes.`,
+        'Cancel'
+      );
+
+      const success = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Rebuilding ${activeLandoApp.name}...`,
+          cancellable: false
+        },
+        async () => {
+          const result = await rebuildLando(activeLandoApp!.rootPath, notification);
+          return result;
+        }
+      );
+
+      if (success) {
+        vscode.window.showInformationMessage(`${activeLandoApp.name} rebuilt successfully`);
+        // Refresh the status
+        await landoStatusMonitor?.refresh();
+        // Check and reload PHP plugins after rebuild
+        await checkAndReloadPhpPlugins();
+      } else {
+        vscode.window.showErrorMessage(`Failed to rebuild ${activeLandoApp.name}`);
+      }
+    })
+  );
+
+  // Command to open a terminal connected to a Lando service (SSH)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.openLandoTerminal', async () => {
+      if (!activeLandoApp) {
+        vscode.window.showErrorMessage('No active Lando app selected');
+        return;
+      }
+
+      // Check if the app is running
+      const status = landoStatusMonitor?.getStatus(activeLandoApp);
+      if (!status?.running) {
+        const action = await vscode.window.showWarningMessage(
+          `${activeLandoApp.name} is not running. Start it first?`,
+          'Start',
+          'Cancel'
+        );
+        if (action === 'Start') {
+          await vscode.commands.executeCommand('extension.startLandoApp');
+          // Wait for Lando to be fully started
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } else {
+          return;
+        }
+      }
+
+      // Get available services
+      const services = await getLandoServices(activeLandoApp.rootPath);
+      
+      if (services.length === 0) {
+        vscode.window.showErrorMessage(`No services available for ${activeLandoApp.name}`);
+        return;
+      }
+
+      interface ServiceQuickPickItem extends vscode.QuickPickItem {
+        service: string;
+      }
+
+      // Build quick pick items
+      const items: ServiceQuickPickItem[] = services.map(service => ({
+        label: `$(terminal) ${service.name}`,
+        description: service.type,
+        service: service.name
+      }));
+
+      // If there's only one service, use it directly
+      let selectedService: string;
+      if (services.length === 1) {
+        selectedService = services[0].name;
+      } else {
+        const selected = await vscode.window.showQuickPick(items, {
+          placeHolder: 'Select a service to connect to',
+          title: `${activeLandoApp.name} - Open Terminal`
+        });
+
+        if (!selected) {
+          return;
+        }
+        selectedService = selected.service;
+      }
+
+      // Create a terminal with lando ssh
+      const terminalName = `Lando: ${activeLandoApp.name} (${selectedService})`;
+      
+      // Check for existing terminal
+      const existingTerminal = vscode.window.terminals.find(t => t.name === terminalName);
+      if (existingTerminal) {
+        existingTerminal.show();
+        return;
+      }
+
+      const terminal = vscode.window.createTerminal({
+        name: terminalName,
+        cwd: activeLandoApp.rootPath,
+      });
+
+      // Use lando ssh to connect to the service
+      terminal.sendText(`lando ssh -s ${selectedService}`);
+      terminal.show();
     })
   );
 

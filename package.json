@@ -137,8 +137,103 @@
       {
         "command": "extension.openLandoDocumentation",
         "title": "Lando: Open Documentation"
+      },
+      {
+        "command": "extension.rebuildLandoApp",
+        "title": "Lando: Rebuild App",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "extension.openLandoTerminal",
+        "title": "Lando: Open Terminal (SSH)",
+        "icon": "$(terminal)"
       }
     ],
+    "submenus": [
+      {
+        "id": "lando.submenu",
+        "label": "Lando"
+      }
+    ],
+    "menus": {
+      "lando.submenu": [
+        {
+          "command": "extension.startLandoApp",
+          "group": "1_lifecycle@1",
+          "when": "lando:hasActiveApp && !lando:appRunning"
+        },
+        {
+          "command": "extension.stopLandoApp",
+          "group": "1_lifecycle@2",
+          "when": "lando:hasActiveApp && lando:appRunning"
+        },
+        {
+          "command": "extension.restartLandoApp",
+          "group": "1_lifecycle@3",
+          "when": "lando:hasActiveApp && lando:appRunning"
+        },
+        {
+          "command": "extension.rebuildLandoApp",
+          "group": "1_lifecycle@4",
+          "when": "lando:hasActiveApp"
+        },
+        {
+          "command": "extension.openLandoUrl",
+          "group": "2_access@1",
+          "when": "lando:hasActiveApp && lando:appRunning"
+        },
+        {
+          "command": "extension.copyLandoUrl",
+          "group": "2_access@2",
+          "when": "lando:hasActiveApp && lando:appRunning"
+        },
+        {
+          "command": "extension.openLandoTerminal",
+          "group": "2_access@3",
+          "when": "lando:hasActiveApp && lando:appRunning"
+        },
+        {
+          "command": "extension.viewLandoLogs",
+          "group": "3_tools@1",
+          "when": "lando:hasActiveApp && lando:appRunning"
+        },
+        {
+          "command": "extension.runLandoTooling",
+          "group": "3_tools@2",
+          "when": "lando:hasActiveApp && lando:appRunning"
+        },
+        {
+          "command": "extension.refreshLandoStatus",
+          "group": "4_info@1",
+          "when": "lando:hasActiveApp"
+        },
+        {
+          "command": "extension.openLandoDocumentation",
+          "group": "4_info@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "lando.submenu",
+          "group": "2_workspace",
+          "when": "lando:hasApps"
+        }
+      ],
+      "editor/context": [
+        {
+          "submenu": "lando.submenu",
+          "group": "z_commands",
+          "when": "lando:hasApps && resourceLangId == landofile"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "submenu": "lando.submenu",
+          "group": "2_files",
+          "when": "lando:hasApps && resourceLangId == landofile"
+        }
+      ]
+    },
     "configuration": {
       "title": "Lando",
       "properties": {
