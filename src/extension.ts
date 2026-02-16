@@ -1610,8 +1610,7 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         );
         if (action === 'Start') {
           await vscode.commands.executeCommand('extension.startLandoApp');
-          // Wait for Lando to be fully started
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          // startLandoApp already waits for completion and refreshes status
         } else {
           return;
         }
@@ -1747,8 +1746,7 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         );
         if (action === 'Start') {
           await vscode.commands.executeCommand('extension.startLandoApp');
-          // Wait a bit for URLs to be available
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // startLandoApp already waits for completion and refreshes status
         } else {
           return;
         }
@@ -1805,8 +1803,7 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         );
         if (action === 'Start') {
           await vscode.commands.executeCommand('extension.startLandoApp');
-          // Wait a bit for containers to be running
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          // startLandoApp already waits for completion and refreshes status
         } else {
           return;
         }
