@@ -160,6 +160,6 @@
   "dependencies": {
     "@types/minimatch": "^5.1.2",
     "glob": "^11.1.0",
-    "minimatch": "^10.0.1"
+    "minimatch": "^10.2.1"
   }
 }
