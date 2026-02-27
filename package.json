@@ -28,6 +28,30 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "lando-explorer",
+          "title": "Lando",
+          "icon": "resources/lando-activitybar.svg"
+        }
+      ]
+    },
+    "views": {
+      "lando-explorer": [
+        {
+          "id": "landoExplorer",
+          "name": "Apps",
+          "contextualTitle": "Lando Apps"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "landoExplorer",
+        "contents": "No Lando apps found in this workspace.\n\nCreate a `.lando.yml` file to get started.\n\n[Open Documentation](command:extension.openLandoDocumentation)"
+      }
+    ],
     "languages": [
       {
         "id": "landofile",
@@ -147,6 +171,49 @@
         "command": "extension.openLandoTerminal",
         "title": "Lando: Open Terminal (SSH)",
         "icon": "$(terminal)"
+      },
+      {
+        "command": "lando.refreshExplorer",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "lando.treeStartApp",
+        "title": "Start",
+        "icon": "$(debug-start)"
+      },
+      {
+        "command": "lando.treeStopApp",
+        "title": "Stop",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "lando.treeRestartApp",
+        "title": "Restart",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "lando.treeOpenTerminal",
+        "title": "Open Terminal (SSH)",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "lando.treeCopyUrl",
+        "title": "Copy URL",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "lando.treeOpenSshService",
+        "title": "SSH into Service",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "lando.openUrlDirect",
+        "title": "Open URL"
+      },
+      {
+        "command": "lando.runToolingDirect",
+        "title": "Run Tooling Command"
       }
     ],
     "submenus": [
@@ -231,6 +298,90 @@
           "submenu": "lando.submenu",
           "group": "2_files",
           "when": "lando:hasApps && resourceLangId == landofile"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "lando.refreshExplorer",
+          "when": "view == landoExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "lando.treeStartApp",
+          "when": "view == landoExplorer && viewItem == app",
+          "group": "inline@1"
+        },
+        {
+          "command": "lando.treeStopApp",
+          "when": "view == landoExplorer && viewItem == app",
+          "group": "inline@2"
+        },
+        {
+          "command": "lando.treeOpenTerminal",
+          "when": "view == landoExplorer && viewItem == app",
+          "group": "inline@3"
+        },
+        {
+          "command": "lando.treeStartApp",
+          "when": "view == landoExplorer && viewItem == app",
+          "group": "1_lifecycle@1"
+        },
+        {
+          "command": "lando.treeStopApp",
+          "when": "view == landoExplorer && viewItem == app",
+          "group": "1_lifecycle@2"
+        },
+        {
+          "command": "lando.treeRestartApp",
+          "when": "view == landoExplorer && viewItem == app",
+          "group": "1_lifecycle@3"
+        },
+        {
+          "command": "extension.rebuildLandoApp",
+          "when": "view == landoExplorer && viewItem == app",
+          "group": "1_lifecycle@4"
+        },
+        {
+          "command": "lando.treeOpenTerminal",
+          "when": "view == landoExplorer && viewItem == app",
+          "group": "2_access@1"
+        },
+        {
+          "command": "extension.openLandoUrl",
+          "when": "view == landoExplorer && viewItem == app",
+          "group": "2_access@2"
+        },
+        {
+          "command": "extension.viewLandoLogs",
+          "when": "view == landoExplorer && viewItem == app",
+          "group": "3_tools@1"
+        },
+        {
+          "command": "extension.runLandoTooling",
+          "when": "view == landoExplorer && viewItem == app",
+          "group": "3_tools@2"
+        },
+        {
+          "command": "lando.treeOpenSshService",
+          "when": "view == landoExplorer && viewItem == service",
+          "group": "inline"
+        },
+        {
+          "command": "lando.treeOpenSshService",
+          "when": "view == landoExplorer && viewItem == service",
+          "group": "1_access@1"
+        },
+        {
+          "command": "lando.treeCopyUrl",
+          "when": "view == landoExplorer && viewItem == url",
+          "group": "inline"
+        },
+        {
+          "command": "lando.treeCopyUrl",
+          "when": "view == landoExplorer && viewItem == url",
+          "group": "1_access@1"
         }
       ]
     },

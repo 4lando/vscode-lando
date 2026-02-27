@@ -7,6 +7,7 @@ import { activateLandofileLanguageFeatures } from "./landofileLanguageFeatures";
 import { registerYamlReferenceProvider } from "./yamlReferenceProvider";
 import { LandoAppDetector, LandoApp, LandoTooling } from "./landoAppDetector";
 import { LandoStatusMonitor } from "./landoStatusMonitor";
+import { LandoTreeDataProvider } from "./landoTreeDataProvider";
 import { 
   LANDO_DOCUMENTATION, 
   DOCUMENTATION_CATEGORIES,
@@ -958,6 +959,11 @@ let landoAppDetector: LandoAppDetector | undefined;
 let landoStatusMonitor: LandoStatusMonitor | undefined;
 
 /**
+ * Global Lando TreeView provider instance
+ */
+let landoTreeDataProvider: LandoTreeDataProvider | undefined;
+
+/**
  * Currently selected/active Lando app
  */
 let activeLandoApp: LandoApp | undefined;
@@ -1018,6 +1024,10 @@ export async function activate(context: vscode.ExtensionContext) {
   landoStatusMonitor.onDidUpdateStatuses(() => {
     updateLandoAppsStatusBar();
   });
+
+  // Initialize the Lando TreeView provider
+  landoTreeDataProvider = new LandoTreeDataProvider();
+  landoTreeDataProvider.activate(context, landoAppDetector, landoStatusMonitor, outputChannel);
 
   // Set up status bar for detected apps
   setupLandoAppsStatusBar(context);

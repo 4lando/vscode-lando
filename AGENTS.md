@@ -17,6 +17,7 @@ The extension has its own custom language support for Lando, independent of othe
 -   `src/landofileSchemaProvider.ts`: **Schema Manager.** Fetches, caches, and provides the official Lando JSON schema that powers the language features in the file above. It includes offline support.
 -   `src/yamlReferenceProvider.ts`: **YAML Navigation.** Enables "Go to Definition" functionality for YAML anchors (`&anchor`) and aliases (`*alias`), making `.lando.yml` files easier to navigate.
 -   `src/shellDecorations.ts`: **UI/UX Enhancement.** Adds the `$` prefix decoration to shell commands within `.lando.yml` files to improve readability and provide a terminal-like feel.
+-   `src/landoTreeDataProvider.ts`: **Lando Explorer Sidebar.** Provides the TreeView data provider for the Activity Bar sidebar, displaying apps, services, URLs, and tooling commands in a hierarchical tree structure.
 -   `syntaxes/landofile.tmLanguage.json`: **Syntax Highlighting.** The TextMate grammar file that defines the syntax highlighting for the custom `landofile` language.
 -   `package.json`: **Manifest File.** Defines the extension's commands, configuration options, language definitions, and dependencies. Changes here are required to expose new features to the user.
 
@@ -54,3 +55,22 @@ This project follows a specific pattern for organizing tests:
 -   **Follow Conventions:** Maintain the existing code style, naming conventions, and architectural patterns.
 -   **Document Your Code:** Add JSDoc comments to new functions, classes, and complex logic to explain the *why*, not just the *what*.
 -   **Update the Manifest:** When adding or changing user-facing features, remember to update `package.json` to reflect new commands, settings, or activation events.
+
+## 6. Documentation & Testing Requirements
+
+**Always update documentation and tests when making changes:**
+
+### README.md Updates
+-   When adding new user-facing features, update `README.md` to document them.
+-   When modifying existing features in ways that change user behavior, update the relevant README sections.
+-   Keep the "Current Features" section accurate and comprehensive.
+-   Update configuration examples if settings change.
+
+### Test Requirements
+-   **All new features must have tests.** This is non-negotiable.
+-   Follow the testing structure in Section 4:
+    -   Pure logic (no VS Code APIs) → co-located unit test (`src/*.test.ts`)
+    -   VS Code integration → integration test (`src/test/suite/*.test.ts`)
+-   When fixing bugs, add a test that reproduces the bug first, then fix it.
+-   When modifying existing functionality, update related tests to reflect the changes.
+-   Run `npm run test` before considering any task complete.

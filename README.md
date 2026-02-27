@@ -8,6 +8,18 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 
 ### ✅ Current Features
 
+#### 🗂️ **Lando Explorer Sidebar**
+- **Activity Bar Integration**: Lando icon in the VS Code Activity Bar for instant access
+- **Visual App Management**: See all your Lando apps at a glance with running/stopped status indicators
+- **Hierarchical Tree View**:
+  - **Apps**: Root-level display of all detected Lando apps with status icons
+  - **Services**: Expandable list of services (appserver, database, redis, etc.) with running state
+  - **URLs**: Clickable URLs that open directly in your browser (shown when app is running)
+  - **Tooling**: One-click access to tooling commands (drush, composer, npm, artisan, etc.)
+- **Inline Actions**: Hover over items to see action buttons (Start, Stop, SSH, Copy URL)
+- **Context Menus**: Right-click for full action menus on apps, services, and URLs
+- **Real-time Updates**: Status automatically refreshes when apps start or stop
+
 #### 🚀 **Lando Command Execution**
 - Run any Lando command directly from the Command Palette (`Ctrl+Shift+P` → "Run Lando Command")
 - Integrated terminal with full color support and interactive input
