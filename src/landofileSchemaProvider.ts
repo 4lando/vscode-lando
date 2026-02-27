@@ -15,7 +15,7 @@ import Ajv from 'ajv';
 /**
  * The URL of the Landofile JSON schema
  */
-const LANDOFILE_SCHEMA_URL = 'https://4lando.github.io/lando-spec/landofile-spec.json';
+const LANDOFILE_SCHEMA_URL = 'https://lando-community.github.io/lando-spec/landofile-spec.json';
 
 /**
  * Interface for the cached schema

@@ -2320,7 +2320,7 @@ function registerPhpManagementCommands(
           
           <h2>JSON Schema Source</h2>
           <p>The extension uses the official Lando JSON schema specification:</p>
-          <code>https://4lando.github.io/lando-spec/landofile-spec.json</code>
+          <code>https://lando-community.github.io/lando-spec/landofile-spec.json</code>
           
           <p><em>This ensures all autocomplete, validation, and documentation are based on the official Lando specification.</em></p>
         </body>
