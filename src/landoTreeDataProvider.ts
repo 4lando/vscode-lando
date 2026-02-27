@@ -325,35 +325,108 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
       })
     );
 
-    // Tree item actions
+    // Tree item actions - these run lando commands directly on the clicked app
     context.subscriptions.push(
-      vscode.commands.registerCommand('lando.treeStartApp', (item: LandoTreeItem) => {
-        if (item.app) {
-          vscode.commands.executeCommand('extension.startLandoApp');
+      vscode.commands.registerCommand('lando.treeStartApp', async (item: LandoTreeItem) => {
+        if (!item.app) {
+          return;
         }
+        const app = item.app;
+        const terminal = vscode.window.createTerminal({
+          name: `Lando: ${app.name}`,
+          cwd: app.rootPath
+        });
+        terminal.sendText('lando start');
+        terminal.show();
+        this.log(`Starting ${app.name} from TreeView`);
       })
     );
 
     context.subscriptions.push(
-      vscode.commands.registerCommand('lando.treeStopApp', (item: LandoTreeItem) => {
-        if (item.app) {
-          vscode.commands.executeCommand('extension.stopLandoApp');
+      vscode.commands.registerCommand('lando.treeStopApp', async (item: LandoTreeItem) => {
+        if (!item.app) {
+          return;
         }
+        const app = item.app;
+        const terminal = vscode.window.createTerminal({
+          name: `Lando: ${app.name}`,
+          cwd: app.rootPath
+        });
+        terminal.sendText('lando stop');
+        terminal.show();
+        this.log(`Stopping ${app.name} from TreeView`);
       })
     );
 
     context.subscriptions.push(
-      vscode.commands.registerCommand('lando.treeRestartApp', (item: LandoTreeItem) => {
-        if (item.app) {
-          vscode.commands.executeCommand('extension.restartLandoApp');
+      vscode.commands.registerCommand('lando.treeRestartApp', async (item: LandoTreeItem) => {
+        if (!item.app) {
+          return;
         }
+        const app = item.app;
+        const terminal = vscode.window.createTerminal({
+          name: `Lando: ${app.name}`,
+          cwd: app.rootPath
+        });
+        terminal.sendText('lando restart');
+        terminal.show();
+        this.log(`Restarting ${app.name} from TreeView`);
       })
     );
 
     context.subscriptions.push(
-      vscode.commands.registerCommand('lando.treeOpenTerminal', (item: LandoTreeItem) => {
-        if (item.app) {
-          vscode.commands.executeCommand('extension.openLandoTerminal');
+      vscode.commands.registerCommand('lando.treeOpenTerminal', async (item: LandoTreeItem) => {
+        if (!item.app) {
+          return;
+        }
+        const app = item.app;
+        // Get available services from cache or fetch them
+        let services = this.servicesCache.get(app.configPath);
+        if (!services || services.length === 0) {
+          await this.fetchAppInfo(app);
+          services = this.servicesCache.get(app.configPath);
+        }
+
+        if (!services || services.length === 0) {
+          // Fall back to default service
+          const terminal = vscode.window.createTerminal({
+            name: `Lando: ${app.name} (ssh)`,
+            cwd: app.rootPath
+          });
+          terminal.sendText('lando ssh');
+          terminal.show();
+          return;
+        }
+
+        // If there's only one service, connect directly
+        if (services.length === 1) {
+          const terminal = vscode.window.createTerminal({
+            name: `Lando: ${app.name} (${services[0].name})`,
+            cwd: app.rootPath
+          });
+          terminal.sendText(`lando ssh -s ${services[0].name}`);
+          terminal.show();
+          return;
+        }
+
+        // Multiple services - show quick pick
+        const items = services.map(s => ({
+          label: s.name,
+          description: s.type,
+          service: s.name
+        }));
+
+        const selected = await vscode.window.showQuickPick(items, {
+          placeHolder: 'Select a service to connect to'
+        });
+
+        if (selected) {
+          const terminal = vscode.window.createTerminal({
+            name: `Lando: ${app.name} (${selected.service})`,
+            cwd: app.rootPath
+          });
+          terminal.sendText(`lando ssh -s ${selected.service}`);
+          terminal.show();
         }
       })
     );
@@ -618,7 +691,8 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
   }
 
   /**
-   * Fetches app info (services and URLs) from lando info command
+   * Fetches app info (services and URLs) from lando info command.
+   * Uses async spawn to avoid blocking the VS Code UI thread.
    */
   private async fetchAppInfo(app: LandoApp): Promise<void> {
     if (this.fetchingInfo.has(app.configPath)) {
@@ -627,53 +701,96 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
 
     this.fetchingInfo.add(app.configPath);
 
-    try {
-      const result = childProcess.execSync('lando info --format=json', {
+    return new Promise((resolve) => {
+      const landoProcess = childProcess.spawn('lando', ['info', '--format=json'], {
         cwd: app.rootPath,
-        encoding: 'utf8',
-        timeout: 15000
+        stdio: 'pipe'
       });
 
-      const infoArray = JSON.parse(result) as Array<{
-        service: string;
-        type?: string;
-        urls?: string[];
-        running?: boolean;
-      }>;
+      let stdout = '';
+      let stderr = '';
 
-      const services: LandoServiceInfo[] = [];
-      const urls: LandoServiceUrl[] = [];
+      landoProcess.stdout.on('data', (data: Buffer) => {
+        stdout += data.toString();
+      });
 
-      for (const info of infoArray) {
-        services.push({
-          name: info.service,
-          type: info.type || 'unknown',
-          running: info.running
-        });
+      landoProcess.stderr.on('data', (data: Buffer) => {
+        stderr += data.toString();
+      });
 
-        if (info.urls) {
-          for (let i = 0; i < info.urls.length; i++) {
-            urls.push({
-              service: info.service,
-              url: info.urls[i],
-              primary: i === 0
-            });
+      landoProcess.on('error', (error) => {
+        this.log(`Error spawning lando info for ${app.name}: ${error}`);
+        this.servicesCache.set(app.configPath, []);
+        this.urlsCache.set(app.configPath, []);
+        this.fetchingInfo.delete(app.configPath);
+        resolve();
+      });
+
+      landoProcess.on('close', (code) => {
+        try {
+          if (code !== 0 || !stdout) {
+            this.log(`lando info failed for ${app.name}: exit code ${code}, stderr: ${stderr}`);
+            this.servicesCache.set(app.configPath, []);
+            this.urlsCache.set(app.configPath, []);
+            this.fetchingInfo.delete(app.configPath);
+            resolve();
+            return;
           }
-        }
-      }
 
-      this.servicesCache.set(app.configPath, services);
-      this.urlsCache.set(app.configPath, urls);
-      
-      this.log(`Fetched info for ${app.name}: ${services.length} services, ${urls.length} URLs`);
-    } catch (error) {
-      this.log(`Error fetching info for ${app.name}: ${error}`);
-      // Set empty arrays so we don't keep retrying
-      this.servicesCache.set(app.configPath, []);
-      this.urlsCache.set(app.configPath, []);
-    } finally {
-      this.fetchingInfo.delete(app.configPath);
-    }
+          const infoArray = JSON.parse(stdout) as Array<{
+            service: string;
+            type?: string;
+            urls?: string[];
+            running?: boolean;
+          }>;
+
+          const services: LandoServiceInfo[] = [];
+          const urls: LandoServiceUrl[] = [];
+
+          for (const info of infoArray) {
+            services.push({
+              name: info.service,
+              type: info.type || 'unknown',
+              running: info.running
+            });
+
+            if (info.urls) {
+              for (let i = 0; i < info.urls.length; i++) {
+                urls.push({
+                  service: info.service,
+                  url: info.urls[i],
+                  primary: i === 0
+                });
+              }
+            }
+          }
+
+          this.servicesCache.set(app.configPath, services);
+          this.urlsCache.set(app.configPath, urls);
+          
+          this.log(`Fetched info for ${app.name}: ${services.length} services, ${urls.length} URLs`);
+        } catch (error) {
+          this.log(`Error parsing lando info for ${app.name}: ${error}`);
+          this.servicesCache.set(app.configPath, []);
+          this.urlsCache.set(app.configPath, []);
+        } finally {
+          this.fetchingInfo.delete(app.configPath);
+          resolve();
+        }
+      });
+
+      // Timeout to prevent hanging
+      setTimeout(() => {
+        if (this.fetchingInfo.has(app.configPath)) {
+          this.log(`lando info timed out for ${app.name}`);
+          landoProcess.kill();
+          this.servicesCache.set(app.configPath, []);
+          this.urlsCache.set(app.configPath, []);
+          this.fetchingInfo.delete(app.configPath);
+          resolve();
+        }
+      }, 15000);
+    });
   }
 
   /**
