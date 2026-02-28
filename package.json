@@ -174,7 +174,7 @@
       },
       {
         "command": "extension.powerOffLando",
-        "title": "Lando: Power Off All",
+        "title": "Lando: Power Off",
         "icon": "$(debug-disconnect)"
       },
       {

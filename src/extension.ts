@@ -1492,7 +1492,7 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
     })
   );
 
-  // Command to power off all Lando containers globally
+  // Command to power off Lando containers globally
   context.subscriptions.push(
     vscode.commands.registerCommand('extension.powerOffLando', async () => {
       // Confirm the action
@@ -1500,11 +1500,11 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         `Power off all Lando containers?\n\n` +
         `This will stop ALL running Lando apps on your system, not just the ones in this workspace.`,
         { modal: true },
-        'Power Off All',
+        'Power Off',
         'Cancel'
       );
 
-      if (confirm !== 'Power Off All') {
+      if (confirm !== 'Power Off') {
         return;
       }
 

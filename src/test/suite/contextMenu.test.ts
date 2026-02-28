@@ -158,7 +158,7 @@ suite("Context Menu Integration Test Suite", () => {
       // Check power off command
       const powerOffCmd = commands.find((c) => c.command === "extension.powerOffLando");
       assert.ok(powerOffCmd, "powerOffLando command should be defined");
-      assert.strictEqual(powerOffCmd?.title, "Lando: Power Off All", "Power Off command should have correct title");
+      assert.strictEqual(powerOffCmd?.title, "Lando: Power Off", "Power Off command should have correct title");
       assert.ok(powerOffCmd?.icon, "Power Off command should have an icon");
     });
 

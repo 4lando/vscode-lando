@@ -64,7 +64,7 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 - **Copy Connection Info**: One-click copy for database credentials and connection details
 - **Rebuild Command**: Rebuild your Lando app with a confirmation dialog
 - **Destroy Command**: Completely remove app containers with safety confirmations
-- **Power Off All**: Stop all running Lando containers system-wide with one click
+- **Power Off**: Stop all running Lando containers system-wide with one click
 
 #### 📚 **Documentation Access**
 - **Quick Access**: Open Lando documentation directly from VS Code (`Ctrl+Shift+P` → "Lando: Open Documentation")
@@ -123,7 +123,7 @@ Access these commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 - **"Lando: Restart App"** - Restart the active Lando app
 - **"Lando: Rebuild App"** - Rebuild the active Lando app (destroys and recreates containers)
 - **"Lando: Destroy App"** - Completely destroy the active Lando app (removes containers, networks, volumes)
-- **"Lando: Power Off All"** - Stop all running Lando containers on your system
+- **"Lando: Power Off"** - Stop all running Lando containers on your system
 - **"Lando: Open App URL"** - Open the app URL in your default browser
 - **"Lando: Copy App URL"** - Copy the app URL to clipboard
 - **"Lando: Open Terminal (SSH)"** - Open a terminal connected to a Lando service
