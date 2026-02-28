@@ -150,8 +150,8 @@ export class LandofileCompletionProvider implements vscode.CompletionItemProvide
   async provideCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position,
-    token: vscode.CancellationToken,
-    context: vscode.CompletionContext
+    _token: vscode.CancellationToken,
+    _context: vscode.CompletionContext
   ): Promise<vscode.CompletionItem[] | vscode.CompletionList | null | undefined> {
     const line = document.lineAt(position.line).text;
     const linePrefix = line.substring(0, position.character);
@@ -482,7 +482,7 @@ export class LandofileHoverProvider implements vscode.HoverProvider {
   async provideHover(
     document: vscode.TextDocument,
     position: vscode.Position,
-    token: vscode.CancellationToken
+    _token: vscode.CancellationToken
   ): Promise<vscode.Hover | undefined> {
     const wordRange = document.getWordRangeAtPosition(position);
     

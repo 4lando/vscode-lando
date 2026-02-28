@@ -366,8 +366,8 @@ export class ShellDecorationProvider {
  */
 class ShellCodeLensProvider implements vscode.CodeLensProvider {
   provideCodeLenses(
-    document: vscode.TextDocument,
-    token: vscode.CancellationToken
+    _document: vscode.TextDocument,
+    _token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.CodeLens[]> {
     return [];
   }

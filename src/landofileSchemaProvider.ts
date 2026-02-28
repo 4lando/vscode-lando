@@ -8,7 +8,6 @@
  */
 
 import * as vscode from 'vscode';
-import * as path from 'path';
 import * as yaml from 'js-yaml';
 import Ajv from 'ajv';
 
@@ -481,8 +480,8 @@ export class LandofileSchemaProvider {
      */
     private formatAjvError(error: any): string {
         const keyword = error.keyword;
-        const dataPath = error.instancePath;
-        const schemaPath = error.schemaPath;
+        const _dataPath = error.instancePath;
+        const _schemaPath = error.schemaPath;
         const params = error.params;
         const message = error.message;
         

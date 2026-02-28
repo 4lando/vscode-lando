@@ -11,7 +11,7 @@ import * as vscode from 'vscode';
 import * as childProcess from 'child_process';
 import { LandoApp, LandoAppDetector, LandoTooling } from './landoAppDetector';
 import { LandoStatusMonitor, LandoAppStatus } from './landoStatusMonitor';
-import { generateConnectionStrings, ConnectionStringResult } from './connectionString';
+import { generateConnectionStrings } from './connectionString';
 import { getServiceIcon, getServiceCategory } from './serviceIcons';
 
 /**
@@ -652,7 +652,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
 
     // Copy connection string to clipboard (for database URLs)
     context.subscriptions.push(
-      vscode.commands.registerCommand('lando.copyConnectionString', async (connectionString: string, label: string) => {
+      vscode.commands.registerCommand('lando.copyConnectionString', async (connectionString: string, _label: string) => {
         await vscode.env.clipboard.writeText(connectionString);
         vscode.window.showInformationMessage(`Copied connection string to clipboard`);
       })
@@ -741,7 +741,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
   /**
    * Gets the parent of a tree item (required for reveal functionality)
    */
-  getParent(element: LandoTreeItem): LandoTreeItem | undefined {
+  getParent(_element: LandoTreeItem): LandoTreeItem | undefined {
     // For simplicity, we don't track parent relationships
     // This is optional and mainly used for reveal() functionality
     return undefined;

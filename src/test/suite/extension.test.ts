@@ -1,7 +1,6 @@
 import * as assert from "assert";
 import { suite, test, suiteSetup, suiteTeardown } from "mocha";
 import * as vscode from "vscode";
-import * as sinon from "sinon";
 
 suite("Extension Test Suite", () => {
   suiteSetup(() => {
@@ -273,7 +272,7 @@ suite("Extension Test Suite", () => {
         try {
           await vscode.workspace.fs.stat(landoFile);
           console.log("Found .lando.yml in workspace");
-        } catch (error) {
+        } catch (_error) {
           console.log("No .lando.yml found in workspace");
         }
       }

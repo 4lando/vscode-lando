@@ -42,7 +42,7 @@ export class YamlReferenceProvider implements vscode.DefinitionProvider, vscode.
     async provideDefinition(
         document: vscode.TextDocument,
         position: vscode.Position,
-        token: vscode.CancellationToken
+        _token: vscode.CancellationToken
     ): Promise<vscode.Location | vscode.Location[] | vscode.LocationLink[] | undefined> {
         
         const alias = this.getAliasAtPosition(document, position);
@@ -71,7 +71,7 @@ export class YamlReferenceProvider implements vscode.DefinitionProvider, vscode.
         document: vscode.TextDocument,
         position: vscode.Position,
         context: vscode.ReferenceContext,
-        token: vscode.CancellationToken
+        _token: vscode.CancellationToken
     ): Promise<vscode.Location[] | undefined> {
         
         const anchorName = this.getAnchorAtPosition(document, position);
@@ -107,7 +107,7 @@ export class YamlReferenceProvider implements vscode.DefinitionProvider, vscode.
     async provideHover(
         document: vscode.TextDocument,
         position: vscode.Position,
-        token: vscode.CancellationToken
+        _token: vscode.CancellationToken
     ): Promise<vscode.Hover | undefined> {
         
         const alias = this.getAliasAtPosition(document, position);
