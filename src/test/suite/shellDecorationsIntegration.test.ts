@@ -1,5 +1,4 @@
 import * as assert from 'assert';
-import * as vscode from 'vscode';
 import { ShellDecorationProvider } from '../../shellDecorations';
 
 suite('Shell Decorations Test Suite', () => {
@@ -14,7 +13,7 @@ suite('Shell Decorations Test Suite', () => {
   });
 
   test('Should detect shell command lines correctly', () => {
-    const testLines = [
+    const _testLines = [
       'services:',
       '  appserver:',
       '    build:',
@@ -129,7 +128,7 @@ suite('Shell Decorations Test Suite', () => {
   });
 
   test('Should not detect non-shell lines', () => {
-    const nonShellLines = [
+    const _nonShellLines = [
       'name: test-app',
       'recipe: drupal9',
       'services:',

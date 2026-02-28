@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import * as childProcess from 'child_process';
 import * as path from "path";
-import * as fs from "fs";
 import { activateShellDecorations } from "./shellDecorations";
 import { activateLandofileLanguageFeatures } from "./landofileLanguageFeatures";
 import { registerYamlReferenceProvider } from "./yamlReferenceProvider";
@@ -12,7 +11,6 @@ import {
   LANDO_DOCUMENTATION, 
   DOCUMENTATION_CATEGORIES,
   getContextAwareDocumentation,
-  LandoDocLink 
 } from "./landoDocumentation";
 
 /** Line ending for terminal output */
@@ -96,56 +94,6 @@ interface LandoConfig {
   cleanAppName: string;
   phpContainer: string;
   phpService: string;
-}
-
-/**
- * Parses Lando configuration from .lando.yml
- * @param workspaceFolder - The workspace folder path
- * @returns LandoConfig object or null if parsing fails
- */
-function parseLandoConfig(workspaceFolder: string): LandoConfig | null {
-  const landoFile = path.join(workspaceFolder, ".lando.yml");
-  
-  if (!fs.existsSync(landoFile)) {
-    outputChannel.appendLine(".lando.yml not found");
-    return null;
-  }
-
-  try {
-    const landoContent = fs.readFileSync(landoFile, "utf8");
-    
-    // Parse the YAML-like content to extract the app name
-    const nameMatch = landoContent.match(/^name:\s*(.+)$/m);
-    if (!nameMatch) {
-      outputChannel.appendLine("Could not find app name in .lando.yml");
-      return null;
-    }
-
-    const appName = nameMatch[1].trim();
-    outputChannel.appendLine(`Found app name: ${appName}`);
-
-    // Clean the app name: remove dashes and underscores, make lowercase
-    const cleanAppName = appName.replace(/[-_]/g, "").toLowerCase();
-    outputChannel.appendLine(`Clean app name: ${cleanAppName}`);
-
-    // Get the PHP service name from configuration
-    const phpService = vscode.workspace.getConfiguration("lando").get("php.service", "appserver");
-    outputChannel.appendLine(`PHP service: ${phpService}`);
-
-    // Construct the container name
-    const phpContainer = `${cleanAppName}_${phpService}_1`;
-    outputChannel.appendLine(`Container name: ${phpContainer}`);
-
-    return {
-      appName,
-      cleanAppName,
-      phpService,
-      phpContainer,
-    };
-  } catch (error: unknown) {
-    outputChannel.appendLine(`Error parsing .lando.yml: ${error}`);
-    return null;
-  }
 }
 
 /**
@@ -361,18 +309,6 @@ async function getLandoUrls(workspaceFolder: string): Promise<LandoServiceUrl[]>
   }
 
   return urls;
-}
-
-/**
- * Gets the primary URL for a Lando app (first URL of the first service with URLs)
- * @param workspaceFolder - The workspace folder path
- * @returns Promise resolving to the primary URL or undefined
- */
-async function getPrimaryLandoUrl(workspaceFolder: string): Promise<string | undefined> {
-  const urls = await getLandoUrls(workspaceFolder);
-  // Return the first primary URL (typically the appserver)
-  const primary = urls.find(u => u.primary);
-  return primary?.url;
 }
 
 /**

@@ -265,7 +265,7 @@ services:
         language: 'landofile'
       });
 
-      const editor = await vscode.window.showTextDocument(document);
+      const _editor = await vscode.window.showTextDocument(document);
       
       // Wait for schema to load
       await new Promise(resolve => setTimeout(resolve, 2000));

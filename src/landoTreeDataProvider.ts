@@ -11,7 +11,8 @@ import * as vscode from 'vscode';
 import * as childProcess from 'child_process';
 import { LandoApp, LandoAppDetector, LandoTooling } from './landoAppDetector';
 import { LandoStatusMonitor, LandoAppStatus } from './landoStatusMonitor';
-import { generateConnectionStrings, ConnectionStringResult } from './connectionString';
+import { generateConnectionStrings } from './connectionString';
+import { getServiceIcon, getServiceCategory } from './serviceIcons';
 
 /**
  * Types of tree items that can be displayed
@@ -202,7 +203,11 @@ export class LandoTreeItem extends vscode.TreeItem {
   }
 
   /**
-   * Sets up a service tree item
+   * Sets up a service tree item with type-specific icons.
+   * 
+   * Uses different icons based on service type (database, web server, cache, etc.)
+   * to help users quickly identify services at a glance. The icon color indicates
+   * running status (green = running, gray = stopped).
    */
   private setupServiceItem(): void {
     const service = this.data as LandoServiceInfo;
@@ -210,14 +215,28 @@ export class LandoTreeItem extends vscode.TreeItem {
       return;
     }
 
-    this.iconPath = new vscode.ThemeIcon(
-      service.running ? 'circle-filled' : 'circle-outline',
-      service.running 
-        ? new vscode.ThemeColor('testing.iconPassed')
-        : new vscode.ThemeColor('testing.iconSkipped')
-    );
-    this.description = service.type;
-    this.tooltip = `${service.name} (${service.type})${service.running ? ' - Running' : ' - Stopped'}`;
+    // Get type-specific icon based on service type
+    const iconConfig = getServiceIcon(service.type);
+    const statusColor = service.running 
+      ? new vscode.ThemeColor('testing.iconPassed')
+      : new vscode.ThemeColor('testing.iconSkipped');
+    
+    this.iconPath = new vscode.ThemeIcon(iconConfig.icon, statusColor);
+    
+    // Show category and type in description for better context
+    const category = getServiceCategory(service.type);
+    this.description = service.type || category;
+    
+    // Build informative tooltip
+    const statusText = service.running ? 'Running' : 'Stopped';
+    const tooltipParts = [
+      `**${service.name}**`,
+      `Type: ${service.type || 'unknown'}`,
+      `Category: ${category}`,
+      `Status: ${statusText}`,
+    ];
+    
+    this.tooltip = new vscode.MarkdownString(tooltipParts.join('\n\n'));
   }
 
   /**
@@ -633,7 +652,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
 
     // Copy connection string to clipboard (for database URLs)
     context.subscriptions.push(
-      vscode.commands.registerCommand('lando.copyConnectionString', async (connectionString: string, label: string) => {
+      vscode.commands.registerCommand('lando.copyConnectionString', async (connectionString: string, _label: string) => {
         await vscode.env.clipboard.writeText(connectionString);
         vscode.window.showInformationMessage(`Copied connection string to clipboard`);
       })
@@ -722,7 +741,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
   /**
    * Gets the parent of a tree item (required for reveal functionality)
    */
-  getParent(element: LandoTreeItem): LandoTreeItem | undefined {
+  getParent(_element: LandoTreeItem): LandoTreeItem | undefined {
     // For simplicity, we don't track parent relationships
     // This is optional and mainly used for reveal() functionality
     return undefined;

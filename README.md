@@ -13,7 +13,10 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 - **Visual App Management**: See all your Lando apps at a glance with running/stopped status indicators
 - **Hierarchical Tree View**:
   - **Apps**: Root-level display of all detected Lando apps with status icons
-  - **Services**: Expandable list of services (appserver, database, redis, etc.) with running state
+  - **Services**: Expandable list of services with type-specific icons and running state
+    - Visual icons identify service types at a glance: database, web server, cache, mail, search, and more
+    - Color-coded status: green for running, gray for stopped
+    - Hover for detailed tooltip with service category and status
   - **URLs**: Clickable URLs that open directly in your browser (shown when app is running)
   - **Info**: Database connection details (host, port, user, password) with one-click copy
   - **Tooling**: One-click access to tooling commands (drush, composer, npm, artisan, etc.)

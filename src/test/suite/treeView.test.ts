@@ -352,7 +352,7 @@ suite("Lando TreeView Integration Test Suite", () => {
       try {
         await vscode.commands.executeCommand("lando.refreshExplorer");
         assert.ok(true, "Refresh command should execute without throwing");
-      } catch (error) {
+      } catch (_error) {
         // Some environments may not have the TreeView initialized
         assert.ok(true, "Command may fail gracefully in test environment");
       }
@@ -366,7 +366,7 @@ suite("Lando TreeView Integration Test Suite", () => {
         // Just verify the command is registered
         const commands = await vscode.commands.getCommands(true);
         assert.ok(commands.includes("lando.openUrlDirect"), "Command should be registered");
-      } catch (error) {
+      } catch (_error) {
         assert.ok(true, "Command exists even if not callable in test environment");
       }
     });

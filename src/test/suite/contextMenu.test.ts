@@ -160,7 +160,7 @@ suite("Context Menu Integration Test Suite", () => {
         await vscode.commands.executeCommand("extension.rebuildLandoApp");
         // Command completed without throwing - this is expected behavior
         assert.ok(true, "Command should complete without throwing");
-      } catch (error) {
+      } catch (_error) {
         // If it does throw, the test still passes as both behaviors are acceptable
         assert.ok(true, "Command may throw when no active app - both behaviors are acceptable");
       }
@@ -174,7 +174,7 @@ suite("Context Menu Integration Test Suite", () => {
         await vscode.commands.executeCommand("extension.openLandoTerminal");
         // Command completed without throwing - this is expected behavior
         assert.ok(true, "Command should complete without throwing");
-      } catch (error) {
+      } catch (_error) {
         // If it does throw, the test still passes as both behaviors are acceptable
         assert.ok(true, "Command may throw when no active app - both behaviors are acceptable");
       }
