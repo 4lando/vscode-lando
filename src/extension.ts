@@ -1685,13 +1685,19 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
       }
 
       // Second confirmation for extra safety
-      const doubleConfirm = await vscode.window.showWarningMessage(
-        `Are you absolutely sure? Type the app name to confirm.`,
-        { modal: true },
-        'Yes, Destroy It'
-      );
+      const appName = activeLandoApp.name;
+      const typedName = await vscode.window.showInputBox({
+        prompt: `Type the app name "${appName}" to confirm destruction`,
+        placeHolder: appName,
+        validateInput: (value) => {
+          if (value !== appName) {
+            return 'App name does not match';
+          }
+          return null;
+        }
+      });
 
-      if (doubleConfirm !== 'Yes, Destroy It') {
+      if (typedName !== appName) {
         return;
       }
 
