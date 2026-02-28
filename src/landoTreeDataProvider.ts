@@ -11,6 +11,7 @@ import * as vscode from 'vscode';
 import * as childProcess from 'child_process';
 import { LandoApp, LandoAppDetector, LandoTooling } from './landoAppDetector';
 import { LandoStatusMonitor, LandoAppStatus } from './landoStatusMonitor';
+import { generateConnectionStrings, ConnectionStringResult } from './connectionString';
 
 /**
  * Types of tree items that can be displayed
@@ -25,6 +26,7 @@ export type LandoTreeItemType =
   | 'tooling'
   | 'infoGroup'
   | 'infoItem'
+  | 'connectionString'
   | 'loading'
   | 'noApps';
 
@@ -85,9 +87,13 @@ interface LandoInfoItem {
   /** The service this info belongs to */
   service: string;
   /** Category of info (for grouping) */
-  category: 'connection' | 'credentials' | 'other';
+  category: 'connection' | 'credentials' | 'connectionString' | 'other';
   /** Icon to display */
   icon?: string;
+  /** For connection strings: the protocol (mysql, postgresql, etc.) */
+  protocol?: string;
+  /** For connection strings: whether this is external or internal */
+  connectionType?: 'external' | 'internal';
 }
 
 /**
@@ -163,6 +169,9 @@ export class LandoTreeItem extends vscode.TreeItem {
         break;
       case 'infoItem':
         this.setupInfoItem();
+        break;
+      case 'connectionString':
+        this.setupConnectionStringItem();
         break;
       case 'loading':
         this.iconPath = new vscode.ThemeIcon('loading~spin');
@@ -286,6 +295,45 @@ export class LandoTreeItem extends vscode.TreeItem {
     this.command = {
       command: 'lando.copyInfoValue',
       title: 'Copy Value',
+      arguments: [info.value, info.label]
+    };
+  }
+
+  /**
+   * Sets up a connection string tree item (ready-to-use database URL)
+   */
+  private setupConnectionStringItem(): void {
+    const info = this.data as LandoInfoItem;
+    if (!info) {
+      return;
+    }
+
+    // Use a prominent link icon for connection strings
+    this.iconPath = new vscode.ThemeIcon('link', new vscode.ThemeColor('charts.blue'));
+    
+    // Show truncated connection string to fit in the tree view
+    const truncatedValue = info.value.length > 50 
+      ? info.value.substring(0, 47) + '...' 
+      : info.value;
+    this.description = truncatedValue;
+    
+    // Build helpful tooltip with full connection string
+    const connectionTypeLabel = info.connectionType === 'external' 
+      ? 'Connect from your computer (IDE, database tools)' 
+      : 'Use inside containers (application config)';
+    
+    this.tooltip = new vscode.MarkdownString(
+      `**${info.label}**\n\n` +
+      `\`\`\`\n${info.value}\n\`\`\`\n\n` +
+      `Protocol: ${info.protocol || 'unknown'}\n\n` +
+      `${connectionTypeLabel}\n\n` +
+      `*Click to copy to clipboard*`
+    );
+    
+    // Click to copy the full connection string
+    this.command = {
+      command: 'lando.copyConnectionString',
+      title: 'Copy Connection String',
       arguments: [info.value, info.label]
     };
   }
@@ -583,6 +631,25 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
       })
     );
 
+    // Copy connection string to clipboard (for database URLs)
+    context.subscriptions.push(
+      vscode.commands.registerCommand('lando.copyConnectionString', async (connectionString: string, label: string) => {
+        await vscode.env.clipboard.writeText(connectionString);
+        vscode.window.showInformationMessage(`Copied connection string to clipboard`);
+      })
+    );
+
+    // Copy connection string from tree context menu
+    context.subscriptions.push(
+      vscode.commands.registerCommand('lando.treeCopyConnectionString', async (item: LandoTreeItem) => {
+        if (item.type === 'connectionString') {
+          const info = item.data as LandoInfoItem;
+          await vscode.env.clipboard.writeText(info.value);
+          vscode.window.showInformationMessage(`Copied connection string to clipboard`);
+        }
+      })
+    );
+
     // View logs for a specific service from tree
     context.subscriptions.push(
       vscode.commands.registerCommand('lando.treeViewServiceLogs', async (item: LandoTreeItem) => {
@@ -871,7 +938,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
 
     return infoItems.map(info => new LandoTreeItem(
       info.label,
-      'infoItem',
+      info.category === 'connectionString' ? 'connectionString' : 'infoItem',
       vscode.TreeItemCollapsibleState.None,
       app,
       info
@@ -1026,6 +1093,26 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
                   category: 'connection'
                 });
               }
+            }
+
+            // Generate ready-to-use connection strings for database services
+            const connectionStrings = generateConnectionStrings({
+              serviceName: info.service,
+              serviceType: info.type,
+              creds: info.creds,
+              externalConnection: info.external_connection,
+              internalConnection: info.internal_connection,
+            });
+
+            for (const connStr of connectionStrings) {
+              infoItems.push({
+                label: connStr.label,
+                value: connStr.connectionString,
+                service: connStr.serviceName,
+                category: 'connectionString',
+                protocol: connStr.protocol,
+                connectionType: connStr.type,
+              });
             }
           }
 
