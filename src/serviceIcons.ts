@@ -32,13 +32,14 @@ export const DEFAULT_SERVICE_ICON: ServiceIconConfig = {
  * so we match on the base type before the colon.
  * 
  * Icons chosen for intuitive recognition:
- * - database: All SQL and NoSQL databases
- * - globe: Web servers (nginx, apache)
- * - symbol-namespace: PHP/application servers
- * - terminal: Node.js, Python, Ruby runtimes
- * - mail: Mail services (mailhog, mailcatcher)
- * - archive: Cache/memory stores (redis, memcached, varnish)
- * - search: Search engines (elasticsearch, solr)
+ * - database: All SQL and NoSQL databases (mysql, postgres, mongo)
+ * - globe: Web servers (nginx, apache, tomcat)
+ * - code: PHP/application servers (php, appserver)
+ * - symbol-event: Node.js runtime
+ * - symbol-method: Python runtime
+ * - layers: Cache/memory stores (redis, memcached, varnish)
+ * - mail: Mail services (mailhog, mailcatcher, mailpit)
+ * - search: Search engines (elasticsearch, solr, meilisearch)
  * - cloud: Platform services (platformsh, pantheon, acquia)
  */
 const SERVICE_TYPE_ICONS: Record<string, ServiceIconConfig> = {

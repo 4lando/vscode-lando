@@ -15,7 +15,6 @@ import {
   isWebServer,
   getAllServiceIcons,
   DEFAULT_SERVICE_ICON,
-  ServiceIconConfig,
 } from './serviceIcons';
 
 suite('Service Icons', () => {
