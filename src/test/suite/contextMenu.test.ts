@@ -148,6 +148,33 @@ suite("Context Menu Integration Test Suite", () => {
       assert.ok(terminalCmd, "openLandoTerminal command should be defined");
       assert.strictEqual(terminalCmd?.title, "Lando: Open Terminal (SSH)", "Terminal command should have correct title");
       assert.ok(terminalCmd?.icon, "Terminal command should have an icon");
+
+      // Check destroy command
+      const destroyCmd = commands.find((c) => c.command === "extension.destroyLandoApp");
+      assert.ok(destroyCmd, "destroyLandoApp command should be defined");
+      assert.strictEqual(destroyCmd?.title, "Lando: Destroy App", "Destroy command should have correct title");
+      assert.ok(destroyCmd?.icon, "Destroy command should have an icon");
+
+      // Check power off command
+      const powerOffCmd = commands.find((c) => c.command === "extension.powerOffLando");
+      assert.ok(powerOffCmd, "powerOffLando command should be defined");
+      assert.strictEqual(powerOffCmd?.title, "Lando: Power Off", "Power Off command should have correct title");
+      assert.ok(powerOffCmd?.icon, "Power Off command should have an icon");
+    });
+
+    test("Destroy and Power Off should be in submenu", () => {
+      const menus = packageJson.contributes!.menus!;
+      const submenuItems = menus["lando.submenu"];
+
+      // Destroy should be in lifecycle group
+      const destroyItem = submenuItems.find((m: { command?: string }) => m.command === "extension.destroyLandoApp");
+      assert.ok(destroyItem, "destroyLandoApp should be in submenu");
+      assert.ok(destroyItem?.group?.includes("1_lifecycle"), "Destroy should be in lifecycle group");
+
+      // Power Off should be in lifecycle group and available without an active app
+      const powerOffItem = submenuItems.find((m: { command?: string }) => m.command === "extension.powerOffLando");
+      assert.ok(powerOffItem, "powerOffLando should be in submenu");
+      assert.ok(powerOffItem?.group?.includes("1_lifecycle"), "Power Off should be in lifecycle group");
     });
   });
 
@@ -181,6 +208,55 @@ suite("Context Menu Integration Test Suite", () => {
     });
   });
 
+  suite("Context Menu Command Behavior - New Commands", () => {
+    test("destroyLandoApp shows error when no active app", async () => {
+      const originalShowErrorMessage = vscode.window.showErrorMessage;
+      let errorShown = false;
+      let errorMessage = "";
+
+      (vscode.window as any).showErrorMessage = (message: string) => {
+        errorShown = true;
+        errorMessage = message;
+        return Promise.resolve(undefined);
+      };
+
+      try {
+        await vscode.commands.executeCommand("extension.destroyLandoApp");
+        assert.ok(errorShown, "Expected error message to be shown when no active app");
+        assert.ok(
+          errorMessage.includes("No active Lando app"),
+          `Expected 'No active Lando app' in error message, got: ${errorMessage}`
+        );
+      } finally {
+        (vscode.window as any).showErrorMessage = originalShowErrorMessage;
+      }
+    });
+
+    test("powerOffLando shows confirmation dialog", async () => {
+      const originalShowWarningMessage = vscode.window.showWarningMessage;
+      let warningShown = false;
+      let warningMessage = "";
+
+      (vscode.window as any).showWarningMessage = (message: string) => {
+        warningShown = true;
+        warningMessage = message;
+        // Return undefined to simulate user dismissing the dialog
+        return Promise.resolve(undefined);
+      };
+
+      try {
+        await vscode.commands.executeCommand("extension.powerOffLando");
+        assert.ok(warningShown, "Expected confirmation dialog to be shown");
+        assert.ok(
+          warningMessage.includes("Power off all Lando containers"),
+          `Expected 'Power off all Lando containers' in warning message, got: ${warningMessage}`
+        );
+      } finally {
+        (vscode.window as any).showWarningMessage = originalShowWarningMessage;
+      }
+    });
+  });
+
   suite("Context State Management", () => {
     test("Extension should set context values for menu visibility", async () => {
       // The context values are set internally and affect menu visibility
@@ -195,6 +271,8 @@ suite("Context Menu Integration Test Suite", () => {
         "extension.stopLandoApp",
         "extension.restartLandoApp",
         "extension.rebuildLandoApp",
+        "extension.destroyLandoApp",
+        "extension.powerOffLando",
         "extension.openLandoTerminal"
       ];
 

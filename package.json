@@ -168,6 +168,16 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "extension.destroyLandoApp",
+        "title": "Lando: Destroy App",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "extension.powerOffLando",
+        "title": "Lando: Power Off",
+        "icon": "$(debug-disconnect)"
+      },
+      {
         "command": "extension.openLandoTerminal",
         "title": "Lando: Open Terminal (SSH)",
         "icon": "$(terminal)"
@@ -268,6 +278,15 @@
           "when": "lando:hasActiveApp"
         },
         {
+          "command": "extension.destroyLandoApp",
+          "group": "1_lifecycle@5",
+          "when": "lando:hasActiveApp"
+        },
+        {
+          "command": "extension.powerOffLando",
+          "group": "1_lifecycle@6"
+        },
+        {
           "command": "extension.openLandoUrl",
           "group": "2_access@1",
           "when": "lando:hasActiveApp && lando:appRunning"
@@ -328,6 +347,11 @@
           "command": "lando.refreshExplorer",
           "when": "view == landoExplorer",
           "group": "navigation"
+        },
+        {
+          "command": "extension.powerOffLando",
+          "when": "view == landoExplorer",
+          "group": "2_actions"
         }
       ],
       "view/item/context": [
@@ -365,6 +389,11 @@
           "command": "extension.rebuildLandoApp",
           "when": "view == landoExplorer && viewItem == app",
           "group": "1_lifecycle@4"
+        },
+        {
+          "command": "extension.destroyLandoApp",
+          "when": "view == landoExplorer && viewItem == app",
+          "group": "1_lifecycle@5"
         },
         {
           "command": "lando.treeOpenTerminal",
