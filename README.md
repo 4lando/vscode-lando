@@ -21,6 +21,7 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
   - External connection info (host/port for connecting from your host machine)
   - Internal connection info (for container-to-container connections)
   - Database credentials (user, password, database name)
+  - **One-Click Connection Strings**: Ready-to-use database URLs (e.g., `mysql://user:pass@localhost:32769/db`) - click to copy and paste directly into DBeaver, TablePlus, or your application config
   - Click any info item to copy its value to clipboard
 - **Service Actions**: Right-click on services to SSH in or view logs for that specific service
 - **Inline Actions**: Hover over items to see action buttons (Start, Stop, SSH, Copy URL, Copy Info)

@@ -228,6 +228,15 @@
         "command": "lando.treeViewServiceLogs",
         "title": "View Logs",
         "icon": "$(output)"
+      },
+      {
+        "command": "lando.copyConnectionString",
+        "title": "Copy Connection String"
+      },
+      {
+        "command": "lando.treeCopyConnectionString",
+        "title": "Copy Connection String",
+        "icon": "$(copy)"
       }
     ],
     "submenus": [
@@ -410,6 +419,16 @@
         {
           "command": "lando.treeCopyInfo",
           "when": "view == landoExplorer && viewItem == infoItem",
+          "group": "1_access@1"
+        },
+        {
+          "command": "lando.treeCopyConnectionString",
+          "when": "view == landoExplorer && viewItem == connectionString",
+          "group": "inline"
+        },
+        {
+          "command": "lando.treeCopyConnectionString",
+          "when": "view == landoExplorer && viewItem == connectionString",
           "group": "1_access@1"
         }
       ]
