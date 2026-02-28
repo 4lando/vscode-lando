@@ -112,24 +112,39 @@ export function isSupportedDatabaseType(serviceType: string | undefined): boolea
 }
 
 /**
+ * URL-encodes special characters in a connection string component.
+ * Used for username, password, and database name to handle special characters
+ * like @, :, /, ?, # that would otherwise break the URL format.
+ * 
+ * @param value - The raw value to encode
+ * @returns URL-encoded value safe for use in connection strings
+ */
+export function encodeConnectionComponent(value: string): string {
+  return encodeURIComponent(value);
+}
+
+/**
  * URL-encodes special characters in a password for use in a connection string.
  * 
  * @param password - The raw password
  * @returns URL-encoded password safe for use in connection strings
+ * @deprecated Use encodeConnectionComponent instead
  */
 export function encodePassword(password: string): string {
-  return encodeURIComponent(password);
+  return encodeConnectionComponent(password);
 }
 
 /**
  * Builds a database connection string URL.
+ * All user-provided values (user, password, database) are URL-encoded to handle
+ * special characters that would otherwise break the URL format.
  * 
  * @param protocol - The database protocol (mysql, postgresql, mongodb)
- * @param user - Username
+ * @param user - Username (will be URL-encoded)
  * @param password - Password (will be URL-encoded)
  * @param host - Hostname or IP
  * @param port - Port number
- * @param database - Database name
+ * @param database - Database name (will be URL-encoded)
  * @returns The complete connection string URL
  */
 export function buildConnectionUrl(
@@ -140,8 +155,10 @@ export function buildConnectionUrl(
   port: string,
   database: string
 ): string {
-  const encodedPassword = encodePassword(password);
-  return `${protocol}://${user}:${encodedPassword}@${host}:${port}/${database}`;
+  const encodedUser = encodeConnectionComponent(user);
+  const encodedPassword = encodeConnectionComponent(password);
+  const encodedDatabase = encodeConnectionComponent(database);
+  return `${protocol}://${encodedUser}:${encodedPassword}@${host}:${port}/${encodedDatabase}`;
 }
 
 /**

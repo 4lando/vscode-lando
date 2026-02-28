@@ -12,6 +12,7 @@ import {
   getProtocolForDatabaseType,
   isSupportedDatabaseType,
   encodePassword,
+  encodeConnectionComponent,
   buildConnectionUrl,
   generateConnectionStrings,
   ConnectionStringInput,
@@ -92,7 +93,26 @@ suite('Connection String Generator', () => {
     });
   });
 
-  suite('encodePassword', () => {
+  suite('encodeConnectionComponent', () => {
+    test('should encode special characters', () => {
+      assert.strictEqual(encodeConnectionComponent('value@special'), 'value%40special');
+      assert.strictEqual(encodeConnectionComponent('value:special'), 'value%3Aspecial');
+      assert.strictEqual(encodeConnectionComponent('value/special'), 'value%2Fspecial');
+      assert.strictEqual(encodeConnectionComponent('value?special'), 'value%3Fspecial');
+      assert.strictEqual(encodeConnectionComponent('value#special'), 'value%23special');
+    });
+
+    test('should not encode safe characters', () => {
+      assert.strictEqual(encodeConnectionComponent('simplevalue123'), 'simplevalue123');
+      assert.strictEqual(encodeConnectionComponent('MyValue'), 'MyValue');
+    });
+
+    test('should handle empty string', () => {
+      assert.strictEqual(encodeConnectionComponent(''), '');
+    });
+  });
+
+  suite('encodePassword (deprecated)', () => {
     test('should encode special characters in passwords', () => {
       assert.strictEqual(encodePassword('pass@word'), 'pass%40word');
       assert.strictEqual(encodePassword('pass:word'), 'pass%3Aword');
@@ -125,6 +145,21 @@ suite('Connection String Generator', () => {
     test('should URL-encode passwords with special characters', () => {
       const url = buildConnectionUrl('mysql', 'user', 'p@ss:word', 'localhost', '3306', 'db');
       assert.strictEqual(url, 'mysql://user:p%40ss%3Aword@localhost:3306/db');
+    });
+
+    test('should URL-encode usernames with special characters', () => {
+      const url = buildConnectionUrl('mysql', 'user@domain', 'password', 'localhost', '3306', 'db');
+      assert.strictEqual(url, 'mysql://user%40domain:password@localhost:3306/db');
+    });
+
+    test('should URL-encode database names with special characters', () => {
+      const url = buildConnectionUrl('mysql', 'user', 'password', 'localhost', '3306', 'my/db');
+      assert.strictEqual(url, 'mysql://user:password@localhost:3306/my%2Fdb');
+    });
+
+    test('should URL-encode all components with special characters', () => {
+      const url = buildConnectionUrl('mysql', 'user@org', 'p@ss:word', 'localhost', '3306', 'db/test');
+      assert.strictEqual(url, 'mysql://user%40org:p%40ss%3Aword@localhost:3306/db%2Ftest');
     });
   });
 
