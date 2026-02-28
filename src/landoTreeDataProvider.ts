@@ -1038,6 +1038,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
           this.log(`Error parsing lando info for ${app.name}: ${error}`);
           this.servicesCache.set(app.configPath, []);
           this.urlsCache.set(app.configPath, []);
+          this.infoCache.set(app.configPath, []);
         } finally {
           this.fetchingInfo.delete(app.configPath);
           resolve();
@@ -1051,6 +1052,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
           landoProcess.kill();
           this.servicesCache.set(app.configPath, []);
           this.urlsCache.set(app.configPath, []);
+          this.infoCache.set(app.configPath, []);
           this.fetchingInfo.delete(app.configPath);
           resolve();
         }
