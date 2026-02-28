@@ -209,24 +209,50 @@ suite("Context Menu Integration Test Suite", () => {
   });
 
   suite("Context Menu Command Behavior - New Commands", () => {
-    test("destroyLandoApp handles no active app gracefully", async () => {
-      // When no active app is selected, the command should complete without throwing.
+    test("destroyLandoApp shows error when no active app", async () => {
+      const originalShowErrorMessage = vscode.window.showErrorMessage;
+      let errorShown = false;
+      let errorMessage = "";
+
+      (vscode.window as any).showErrorMessage = (message: string) => {
+        errorShown = true;
+        errorMessage = message;
+        return Promise.resolve(undefined);
+      };
+
       try {
         await vscode.commands.executeCommand("extension.destroyLandoApp");
-        assert.ok(true, "Command should complete without throwing");
-      } catch (_error) {
-        assert.ok(true, "Command may throw when no active app - both behaviors are acceptable");
+        assert.ok(errorShown, "Expected error message to be shown when no active app");
+        assert.ok(
+          errorMessage.includes("No active Lando app"),
+          `Expected 'No active Lando app' in error message, got: ${errorMessage}`
+        );
+      } finally {
+        (vscode.window as any).showErrorMessage = originalShowErrorMessage;
       }
     });
 
-    test("powerOffLando handles execution gracefully", async () => {
-      // Power Off doesn't require an active app but needs user confirmation.
-      // In test mode it should either show confirmation dialog or complete without error.
+    test("powerOffLando shows confirmation dialog", async () => {
+      const originalShowWarningMessage = vscode.window.showWarningMessage;
+      let warningShown = false;
+      let warningMessage = "";
+
+      (vscode.window as any).showWarningMessage = (message: string) => {
+        warningShown = true;
+        warningMessage = message;
+        // Return undefined to simulate user dismissing the dialog
+        return Promise.resolve(undefined);
+      };
+
       try {
         await vscode.commands.executeCommand("extension.powerOffLando");
-        assert.ok(true, "Command should complete without throwing");
-      } catch (_error) {
-        assert.ok(true, "Command may throw - both behaviors are acceptable");
+        assert.ok(warningShown, "Expected confirmation dialog to be shown");
+        assert.ok(
+          warningMessage.includes("Power off all Lando containers"),
+          `Expected 'Power off all Lando containers' in warning message, got: ${warningMessage}`
+        );
+      } finally {
+        (vscode.window as any).showWarningMessage = originalShowWarningMessage;
       }
     });
   });
