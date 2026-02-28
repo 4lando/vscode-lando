@@ -434,6 +434,35 @@ suite("Extension Test Suite", () => {
         (vscode.window as any).showErrorMessage = originalShowErrorMessage;
       }
     });
+
+    test("Destroy command should show error when no active app", async () => {
+      const originalShowErrorMessage = vscode.window.showErrorMessage;
+      let errorShown = false;
+      let errorMessage = "";
+
+      (vscode.window as any).showErrorMessage = (message: string) => {
+        errorShown = true;
+        errorMessage = message;
+        return Promise.resolve(undefined);
+      };
+
+      try {
+        await vscode.commands.executeCommand("extension.destroyLandoApp");
+        // Verify error was shown when no active app is selected
+        assert.ok(errorShown, "Expected error message to be shown when no active app");
+        assert.ok(errorMessage.includes("No active Lando app"), `Expected 'No active Lando app' in error message, got: ${errorMessage}`);
+      } finally {
+        (vscode.window as any).showErrorMessage = originalShowErrorMessage;
+      }
+    });
+
+    test("Destroy and Power Off commands should be registered", async () => {
+      const commands = await vscode.commands.getCommands();
+      
+      // New commands should be registered
+      assert.ok(commands.includes("extension.destroyLandoApp"), "destroyLandoApp command should be registered");
+      assert.ok(commands.includes("extension.powerOffLando"), "powerOffLando command should be registered");
+    });
   });
 
 });

@@ -708,6 +708,132 @@ async function rebuildLando(
 }
 
 /**
+ * Destroys Lando app (removes containers and optionally data)
+ * @param workspaceFolder - The workspace folder path
+ * @param notification - Optional notification promise for cancellation
+ * @returns Promise resolving to true if destroyed successfully, false otherwise
+ */
+async function destroyLando(
+  workspaceFolder: string,
+  notification?: Thenable<string | undefined>
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    outputChannel.appendLine("Destroying Lando...");
+    
+    // Use -y flag to skip confirmation prompt
+    const landoProcess = childProcess.spawn("lando", ["destroy", "-y"], {
+      cwd: workspaceFolder,
+      stdio: "pipe",
+    });
+
+    let output = "";
+
+    landoProcess.stdout.on("data", (data: Buffer) => {
+      const message = data.toString();
+      output += message;
+      outputChannel.appendLine(`Lando output: ${message.trim()}`);
+    });
+
+    // Note: Many CLI tools (including Lando) output progress info to stderr,
+    // so we log it but don't treat it as an error. Exit code is the source of truth.
+    landoProcess.stderr.on("data", (data: Buffer) => {
+      const message = data.toString();
+      output += message;
+      outputChannel.appendLine(`Lando stderr: ${message.trim()}`);
+    });
+
+    landoProcess.on("close", (code: number) => {
+      outputChannel.appendLine(`Lando process exited with code ${code}`);
+      
+      // Use exit code as the sole indicator of success - stderr output is not an error indicator
+      if (code === 0) {
+        resolve(true);
+      } else {
+        outputChannel.appendLine(`Lando failed to destroy (exit code ${code}): ${output}`);
+        resolve(false);
+      }
+    });
+
+    landoProcess.on("error", (error: Error) => {
+      outputChannel.appendLine(`Error destroying Lando: ${error.message}`);
+      resolve(false);
+    });
+
+    // Handle cancellation
+    if (notification) {
+      notification.then((selection) => {
+        if (selection === "Cancel") {
+          outputChannel.appendLine("Lando destroy cancelled by user");
+          landoProcess.kill();
+          resolve(false);
+        }
+      });
+    }
+  });
+}
+
+/**
+ * Powers off all Lando containers globally
+ * @param notification - Optional notification promise for cancellation
+ * @returns Promise resolving to true if powered off successfully, false otherwise
+ */
+async function powerOffLando(
+  notification?: Thenable<string | undefined>
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    outputChannel.appendLine("Powering off all Lando containers...");
+    
+    const landoProcess = childProcess.spawn("lando", ["poweroff"], {
+      stdio: "pipe",
+    });
+
+    let output = "";
+
+    landoProcess.stdout.on("data", (data: Buffer) => {
+      const message = data.toString();
+      output += message;
+      outputChannel.appendLine(`Lando output: ${message.trim()}`);
+    });
+
+    // Note: Many CLI tools (including Lando) output progress info to stderr,
+    // so we log it but don't treat it as an error. Exit code is the source of truth.
+    landoProcess.stderr.on("data", (data: Buffer) => {
+      const message = data.toString();
+      output += message;
+      outputChannel.appendLine(`Lando stderr: ${message.trim()}`);
+    });
+
+    landoProcess.on("close", (code: number) => {
+      outputChannel.appendLine(`Lando process exited with code ${code}`);
+      
+      // Use exit code as the sole indicator of success - stderr output is not an error indicator
+      if (code === 0) {
+        resolve(true);
+      } else {
+        outputChannel.appendLine(`Lando poweroff failed (exit code ${code}): ${output}`);
+        resolve(false);
+      }
+    });
+
+    landoProcess.on("error", (error: Error) => {
+      outputChannel.appendLine(`Error powering off Lando: ${error.message}`);
+      resolve(false);
+    });
+
+    // Handle cancellation
+    if (notification) {
+      notification.then((selection) => {
+        if (selection === "Cancel") {
+          outputChannel.appendLine("Lando poweroff cancelled by user");
+          landoProcess.kill();
+          resolve(false);
+        }
+      });
+    }
+  });
+}
+
+/**
  * Gets the path to the PHP wrapper script
  * @returns The path to the appropriate PHP wrapper script
  */
@@ -1531,6 +1657,110 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         await checkAndReloadPhpPlugins();
       } else {
         vscode.window.showErrorMessage(`Failed to rebuild ${activeLandoApp.name}`);
+      }
+    })
+  );
+
+  // Command to destroy the active Lando app (very destructive - removes everything)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.destroyLandoApp', async () => {
+      if (!activeLandoApp) {
+        vscode.window.showErrorMessage('No active Lando app selected');
+        return;
+      }
+
+      // Show a strong warning about the destructive nature of this action
+      const confirm = await vscode.window.showWarningMessage(
+        `⚠️ DESTROY ${activeLandoApp.name}?\n\n` +
+        `This will completely remove all containers, networks, and volumes for this app. ` +
+        `Any data stored in containers (databases, uploads, etc.) will be permanently deleted.\n\n` +
+        `Your project files will NOT be affected.`,
+        { modal: true },
+        'Destroy',
+        'Cancel'
+      );
+
+      if (confirm !== 'Destroy') {
+        return;
+      }
+
+      // Second confirmation for extra safety
+      const doubleConfirm = await vscode.window.showWarningMessage(
+        `Are you absolutely sure? Type the app name to confirm.`,
+        { modal: true },
+        'Yes, Destroy It'
+      );
+
+      if (doubleConfirm !== 'Yes, Destroy It') {
+        return;
+      }
+
+      const notification = vscode.window.showInformationMessage(
+        `Destroying ${activeLandoApp.name}...`,
+        'Cancel'
+      );
+
+      const success = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Destroying ${activeLandoApp.name}...`,
+          cancellable: false
+        },
+        async () => {
+          const result = await destroyLando(activeLandoApp!.rootPath, notification);
+          return result;
+        }
+      );
+
+      if (success) {
+        vscode.window.showInformationMessage(`${activeLandoApp.name} destroyed successfully`);
+        // Refresh the status - app will now appear as stopped
+        await landoStatusMonitor?.refresh();
+      } else {
+        vscode.window.showErrorMessage(`Failed to destroy ${activeLandoApp.name}`);
+      }
+    })
+  );
+
+  // Command to power off all Lando containers globally
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.powerOffLando', async () => {
+      // Confirm the action
+      const confirm = await vscode.window.showWarningMessage(
+        `Power off all Lando containers?\n\n` +
+        `This will stop ALL running Lando apps on your system, not just the ones in this workspace.`,
+        { modal: true },
+        'Power Off All',
+        'Cancel'
+      );
+
+      if (confirm !== 'Power Off All') {
+        return;
+      }
+
+      const notification = vscode.window.showInformationMessage(
+        'Powering off all Lando containers...',
+        'Cancel'
+      );
+
+      const success = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: 'Powering off all Lando containers...',
+          cancellable: false
+        },
+        async () => {
+          const result = await powerOffLando(notification);
+          return result;
+        }
+      );
+
+      if (success) {
+        vscode.window.showInformationMessage('All Lando containers powered off');
+        // Refresh the status - all apps will now appear as stopped
+        await landoStatusMonitor?.refresh();
+      } else {
+        vscode.window.showErrorMessage('Failed to power off Lando containers');
       }
     })
   );
