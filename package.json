@@ -214,6 +214,20 @@
       {
         "command": "lando.runToolingDirect",
         "title": "Run Tooling Command"
+      },
+      {
+        "command": "lando.copyInfoValue",
+        "title": "Copy Value"
+      },
+      {
+        "command": "lando.treeCopyInfo",
+        "title": "Copy Value",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "lando.treeViewServiceLogs",
+        "title": "View Logs",
+        "icon": "$(output)"
       }
     ],
     "submenus": [
@@ -381,6 +395,21 @@
         {
           "command": "lando.treeCopyUrl",
           "when": "view == landoExplorer && viewItem == url",
+          "group": "1_access@1"
+        },
+        {
+          "command": "lando.treeViewServiceLogs",
+          "when": "view == landoExplorer && viewItem == service",
+          "group": "1_access@2"
+        },
+        {
+          "command": "lando.treeCopyInfo",
+          "when": "view == landoExplorer && viewItem == infoItem",
+          "group": "inline"
+        },
+        {
+          "command": "lando.treeCopyInfo",
+          "when": "view == landoExplorer && viewItem == infoItem",
           "group": "1_access@1"
         }
       ]

@@ -15,9 +15,16 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
   - **Apps**: Root-level display of all detected Lando apps with status icons
   - **Services**: Expandable list of services (appserver, database, redis, etc.) with running state
   - **URLs**: Clickable URLs that open directly in your browser (shown when app is running)
+  - **Info**: Database connection details (host, port, user, password) with one-click copy
   - **Tooling**: One-click access to tooling commands (drush, composer, npm, artisan, etc.)
-- **Inline Actions**: Hover over items to see action buttons (Start, Stop, SSH, Copy URL)
-- **Context Menus**: Right-click for full action menus on apps, services, and URLs
+- **Connection Info at a Glance**: See database credentials and connection details without touching the CLI
+  - External connection info (host/port for connecting from your host machine)
+  - Internal connection info (for container-to-container connections)
+  - Database credentials (user, password, database name)
+  - Click any info item to copy its value to clipboard
+- **Service Actions**: Right-click on services to SSH in or view logs for that specific service
+- **Inline Actions**: Hover over items to see action buttons (Start, Stop, SSH, Copy URL, Copy Info)
+- **Context Menus**: Right-click for full action menus on apps, services, URLs, and info items
 - **Real-time Updates**: Status automatically refreshes when apps start or stop
 
 #### 🚀 **Lando Command Execution**
@@ -49,6 +56,8 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 - **Smart Visibility**: Menu items adapt based on app state (shows "Start" when stopped, "Stop" when running)
 - **Organized Submenu**: All commands grouped under a clean "Lando" submenu
 - **SSH Terminal**: Open a terminal directly connected to any Lando service
+- **View Service Logs**: Right-click a service in the tree view to view its logs in a terminal
+- **Copy Connection Info**: One-click copy for database credentials and connection details
 - **Rebuild Command**: Rebuild your Lando app with a confirmation dialog
 
 #### 📚 **Documentation Access**
@@ -71,7 +80,7 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 - **Real-time Validation**: Live validation with error highlighting for missing required fields, invalid recipes, and service types
 
 ### 🔜 Planned Features
-- [ ] Integrated log viewer with filtering
+- [ ] Integrated log viewer panel with filtering and search
 
 ### 🚀 Future Roadmap
 - Automatic Xdebug configuration

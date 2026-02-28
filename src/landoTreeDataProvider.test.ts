@@ -19,6 +19,8 @@ type LandoTreeItemType =
   | 'url'
   | 'toolingGroup'
   | 'tooling'
+  | 'infoGroup'
+  | 'infoItem'
   | 'loading'
   | 'noApps';
 
@@ -40,6 +42,48 @@ interface LandoTooling {
   cmd?: string | string[];
   description?: string;
   isCustom: boolean;
+}
+
+/**
+ * Represents connection credentials for a database service
+ */
+interface LandoConnectionCreds {
+  user?: string;
+  password?: string;
+  database?: string;
+}
+
+/**
+ * Represents connection endpoint information
+ */
+interface LandoConnectionEndpoint {
+  host?: string;
+  port?: string;
+}
+
+/**
+ * Represents a copyable info item displayed in the tree
+ */
+interface LandoInfoItem {
+  label: string;
+  value: string;
+  service: string;
+  category: 'connection' | 'credentials' | 'other';
+  icon?: string;
+}
+
+/**
+ * Extended service info from lando info command
+ */
+interface LandoServiceDetails {
+  service: string;
+  type?: string;
+  urls?: string[];
+  creds?: LandoConnectionCreds;
+  internal_connection?: LandoConnectionEndpoint;
+  external_connection?: LandoConnectionEndpoint;
+  hostnames?: string[];
+  running?: boolean;
 }
 
 /**
@@ -151,6 +195,108 @@ function parseServicesFromLandoInfo(infoArray: Array<{
 }
 
 /**
+ * Parses connection info (credentials, ports) from lando info JSON output
+ * Mirrors the logic in landoTreeDataProvider.ts fetchAppInfo
+ */
+function parseInfoFromLandoInfo(infoArray: LandoServiceDetails[]): LandoInfoItem[] {
+  const infoItems: LandoInfoItem[] = [];
+
+  for (const info of infoArray) {
+    const serviceName = info.service;
+
+    // Extract credentials for database services
+    if (info.creds) {
+      if (info.creds.database) {
+        infoItems.push({
+          label: `${serviceName}: Database`,
+          value: info.creds.database,
+          service: serviceName,
+          category: 'credentials'
+        });
+      }
+      if (info.creds.user) {
+        infoItems.push({
+          label: `${serviceName}: User`,
+          value: info.creds.user,
+          service: serviceName,
+          category: 'credentials'
+        });
+      }
+      if (info.creds.password) {
+        infoItems.push({
+          label: `${serviceName}: Password`,
+          value: info.creds.password,
+          service: serviceName,
+          category: 'credentials'
+        });
+      }
+    }
+
+    // Extract external connection info
+    if (info.external_connection) {
+      if (info.external_connection.host) {
+        infoItems.push({
+          label: `${serviceName}: Host (external)`,
+          value: info.external_connection.host,
+          service: serviceName,
+          category: 'connection'
+        });
+      }
+      if (info.external_connection.port) {
+        infoItems.push({
+          label: `${serviceName}: Port (external)`,
+          value: info.external_connection.port,
+          service: serviceName,
+          category: 'connection'
+        });
+      }
+    }
+
+    // Extract internal connection info
+    if (info.internal_connection) {
+      if (info.internal_connection.host) {
+        infoItems.push({
+          label: `${serviceName}: Host (internal)`,
+          value: info.internal_connection.host,
+          service: serviceName,
+          category: 'connection'
+        });
+      }
+      if (info.internal_connection.port) {
+        infoItems.push({
+          label: `${serviceName}: Port (internal)`,
+          value: info.internal_connection.port,
+          service: serviceName,
+          category: 'connection'
+        });
+      }
+    }
+  }
+
+  return infoItems;
+}
+
+/**
+ * Gets the appropriate icon name for an info item based on its label
+ * Mirrors the logic in LandoTreeItem.setupInfoItem
+ */
+function getIconForInfoItem(label: string): string {
+  const lowerLabel = label.toLowerCase();
+  if (lowerLabel.includes('host')) {
+    return 'server';
+  } else if (lowerLabel.includes('port')) {
+    return 'plug';
+  } else if (lowerLabel.includes('user')) {
+    return 'person';
+  } else if (lowerLabel.includes('password')) {
+    return 'key';
+  } else if (lowerLabel.includes('database')) {
+    return 'database';
+  }
+  return 'symbol-field';
+}
+
+/**
  * Gets the appropriate icon name for a tree item type
  */
 function getIconForType(type: LandoTreeItemType): string {
@@ -169,6 +315,10 @@ function getIconForType(type: LandoTreeItemType): string {
       return 'tools';
     case 'tooling':
       return 'terminal';
+    case 'infoGroup':
+      return 'database';
+    case 'infoItem':
+      return 'symbol-field';
     case 'loading':
       return 'loading~spin';
     case 'noApps':
@@ -482,6 +632,211 @@ without commands section`;
       
       assert.ok(tooling.some(t => t.name === 'drush'));
       assert.ok(tooling.some(t => t.name === 'composer'));
+    });
+  });
+
+  suite("Connection Info Parsing", () => {
+    test("Should parse database credentials from lando info output", () => {
+      const infoArray: LandoServiceDetails[] = [
+        {
+          service: 'database',
+          type: 'mysql',
+          creds: {
+            database: 'drupal10',
+            user: 'drupal10',
+            password: 'drupal10'
+          }
+        }
+      ];
+
+      const infoItems = parseInfoFromLandoInfo(infoArray);
+
+      assert.strictEqual(infoItems.length, 3);
+      assert.ok(infoItems.some(i => i.label === 'database: Database' && i.value === 'drupal10'));
+      assert.ok(infoItems.some(i => i.label === 'database: User' && i.value === 'drupal10'));
+      assert.ok(infoItems.some(i => i.label === 'database: Password' && i.value === 'drupal10'));
+    });
+
+    test("Should parse external connection info from lando info output", () => {
+      const infoArray: LandoServiceDetails[] = [
+        {
+          service: 'database',
+          type: 'mysql',
+          external_connection: {
+            host: 'localhost',
+            port: '32769'
+          }
+        }
+      ];
+
+      const infoItems = parseInfoFromLandoInfo(infoArray);
+
+      assert.strictEqual(infoItems.length, 2);
+      assert.ok(infoItems.some(i => i.label === 'database: Host (external)' && i.value === 'localhost'));
+      assert.ok(infoItems.some(i => i.label === 'database: Port (external)' && i.value === '32769'));
+    });
+
+    test("Should parse internal connection info from lando info output", () => {
+      const infoArray: LandoServiceDetails[] = [
+        {
+          service: 'database',
+          type: 'mysql',
+          internal_connection: {
+            host: 'database',
+            port: '3306'
+          }
+        }
+      ];
+
+      const infoItems = parseInfoFromLandoInfo(infoArray);
+
+      assert.strictEqual(infoItems.length, 2);
+      assert.ok(infoItems.some(i => i.label === 'database: Host (internal)' && i.value === 'database'));
+      assert.ok(infoItems.some(i => i.label === 'database: Port (internal)' && i.value === '3306'));
+    });
+
+    test("Should parse complete connection info for database service", () => {
+      const infoArray: LandoServiceDetails[] = [
+        {
+          service: 'database',
+          type: 'mysql:8.0',
+          running: true,
+          creds: {
+            database: 'wordpress',
+            user: 'wordpress',
+            password: 'wordpress'
+          },
+          internal_connection: {
+            host: 'database',
+            port: '3306'
+          },
+          external_connection: {
+            host: 'localhost',
+            port: '49153'
+          }
+        }
+      ];
+
+      const infoItems = parseInfoFromLandoInfo(infoArray);
+
+      // Should have 7 items: 3 creds + 2 external + 2 internal
+      assert.strictEqual(infoItems.length, 7);
+      
+      // Check all categories are represented
+      const credItems = infoItems.filter(i => i.category === 'credentials');
+      const connItems = infoItems.filter(i => i.category === 'connection');
+      assert.strictEqual(credItems.length, 3);
+      assert.strictEqual(connItems.length, 4);
+    });
+
+    test("Should handle service without connection info", () => {
+      const infoArray: LandoServiceDetails[] = [
+        {
+          service: 'appserver',
+          type: 'php',
+          running: true,
+          urls: ['https://myapp.lndo.site']
+        }
+      ];
+
+      const infoItems = parseInfoFromLandoInfo(infoArray);
+
+      // PHP service typically doesn't have creds or connection info
+      assert.strictEqual(infoItems.length, 0);
+    });
+
+    test("Should handle multiple services with connection info", () => {
+      const infoArray: LandoServiceDetails[] = [
+        {
+          service: 'database',
+          type: 'mysql',
+          creds: { database: 'main', user: 'root', password: 'root' }
+        },
+        {
+          service: 'cache',
+          type: 'redis',
+          internal_connection: { host: 'cache', port: '6379' }
+        }
+      ];
+
+      const infoItems = parseInfoFromLandoInfo(infoArray);
+
+      // 3 creds from database + 2 connection from cache
+      assert.strictEqual(infoItems.length, 5);
+      
+      // Check service names are correct
+      const dbItems = infoItems.filter(i => i.service === 'database');
+      const cacheItems = infoItems.filter(i => i.service === 'cache');
+      assert.strictEqual(dbItems.length, 3);
+      assert.strictEqual(cacheItems.length, 2);
+    });
+
+    test("Should handle partial credential info", () => {
+      const infoArray: LandoServiceDetails[] = [
+        {
+          service: 'database',
+          type: 'mysql',
+          creds: {
+            database: 'mydb'
+            // user and password missing
+          }
+        }
+      ];
+
+      const infoItems = parseInfoFromLandoInfo(infoArray);
+
+      assert.strictEqual(infoItems.length, 1);
+      assert.strictEqual(infoItems[0].label, 'database: Database');
+      assert.strictEqual(infoItems[0].value, 'mydb');
+    });
+
+    test("Should handle empty info array", () => {
+      const infoItems = parseInfoFromLandoInfo([]);
+      assert.strictEqual(infoItems.length, 0);
+    });
+  });
+
+  suite("Info Item Icon Selection", () => {
+    test("Should return server icon for host labels", () => {
+      assert.strictEqual(getIconForInfoItem('database: Host (external)'), 'server');
+      assert.strictEqual(getIconForInfoItem('database: Host (internal)'), 'server');
+      assert.strictEqual(getIconForInfoItem('Host'), 'server');
+    });
+
+    test("Should return plug icon for port labels", () => {
+      assert.strictEqual(getIconForInfoItem('database: Port (external)'), 'plug');
+      assert.strictEqual(getIconForInfoItem('database: Port (internal)'), 'plug');
+      assert.strictEqual(getIconForInfoItem('Port'), 'plug');
+    });
+
+    test("Should return person icon for user labels", () => {
+      assert.strictEqual(getIconForInfoItem('database: User'), 'person');
+      assert.strictEqual(getIconForInfoItem('Username'), 'person');
+    });
+
+    test("Should return key icon for password labels", () => {
+      assert.strictEqual(getIconForInfoItem('database: Password'), 'key');
+      assert.strictEqual(getIconForInfoItem('Password'), 'key');
+    });
+
+    test("Should return database icon for database labels", () => {
+      assert.strictEqual(getIconForInfoItem('database: Database'), 'database');
+      assert.strictEqual(getIconForInfoItem('Database Name'), 'database');
+    });
+
+    test("Should return default icon for unknown labels", () => {
+      assert.strictEqual(getIconForInfoItem('Something Else'), 'symbol-field');
+      assert.strictEqual(getIconForInfoItem('Custom Field'), 'symbol-field');
+    });
+  });
+
+  suite("Info Group Tree Item Type", () => {
+    test("Should return correct icon for infoGroup type", () => {
+      assert.strictEqual(getIconForType('infoGroup'), 'database');
+    });
+
+    test("Should return correct icon for infoItem type", () => {
+      assert.strictEqual(getIconForType('infoItem'), 'symbol-field');
     });
   });
 });

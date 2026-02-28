@@ -86,6 +86,30 @@ suite("Lando TreeView Integration Test Suite", () => {
       );
     });
 
+    test("lando.copyInfoValue command should be registered", async () => {
+      const commands = await vscode.commands.getCommands(true);
+      assert.ok(
+        commands.includes("lando.copyInfoValue"),
+        "lando.copyInfoValue command should be registered"
+      );
+    });
+
+    test("lando.treeCopyInfo command should be registered", async () => {
+      const commands = await vscode.commands.getCommands(true);
+      assert.ok(
+        commands.includes("lando.treeCopyInfo"),
+        "lando.treeCopyInfo command should be registered"
+      );
+    });
+
+    test("lando.treeViewServiceLogs command should be registered", async () => {
+      const commands = await vscode.commands.getCommands(true);
+      assert.ok(
+        commands.includes("lando.treeViewServiceLogs"),
+        "lando.treeViewServiceLogs command should be registered"
+      );
+    });
+
     test("All TreeView commands should be registered", async () => {
       const commands = await vscode.commands.getCommands(true);
       const treeViewCommands = [
@@ -97,7 +121,10 @@ suite("Lando TreeView Integration Test Suite", () => {
         "lando.treeCopyUrl",
         "lando.treeOpenSshService",
         "lando.openUrlDirect",
-        "lando.runToolingDirect"
+        "lando.runToolingDirect",
+        "lando.copyInfoValue",
+        "lando.treeCopyInfo",
+        "lando.treeViewServiceLogs"
       ];
 
       treeViewCommands.forEach(cmd => {
@@ -186,6 +213,28 @@ suite("Lando TreeView Integration Test Suite", () => {
       // Check for URL context menu items
       const urlItems = viewItemContextMenu.filter((m) => m.when?.includes("viewItem == url"));
       assert.ok(urlItems.length >= 1, "Should have URL context menu items");
+
+      // Check for info item context menu items
+      const infoItems = viewItemContextMenu.filter((m) => m.when?.includes("viewItem == infoItem"));
+      assert.ok(infoItems.length >= 1, "Should have info item context menu items");
+    });
+
+    test("Should have inline action for info items", () => {
+      const viewItemContextMenu = packageJson.contributes!.menus!["view/item/context"];
+      
+      const copyInfoInline = viewItemContextMenu.find(
+        (m) => m.command === "lando.treeCopyInfo" && m.group === "inline"
+      );
+      assert.ok(copyInfoInline, "Copy Info button should be inline for info items");
+    });
+
+    test("Should have View Logs action for services", () => {
+      const viewItemContextMenu = packageJson.contributes!.menus!["view/item/context"];
+      
+      const viewLogsItem = viewItemContextMenu.find(
+        (m) => m.command === "lando.treeViewServiceLogs" && m.when?.includes("viewItem == service")
+      );
+      assert.ok(viewLogsItem, "View Logs should be available for services");
     });
 
     test("Should have inline action buttons for apps", () => {
@@ -279,6 +328,22 @@ suite("Lando TreeView Integration Test Suite", () => {
       );
       assert.ok(sshCmd, "SSH service command should be defined");
       assert.strictEqual(sshCmd?.icon, "$(terminal)", "SSH should have terminal icon");
+    });
+
+    test("Copy Info command should have icon", () => {
+      const copyInfoCmd = packageJson.contributes!.commands!.find(
+        (c) => c.command === "lando.treeCopyInfo"
+      );
+      assert.ok(copyInfoCmd, "Copy Info command should be defined");
+      assert.strictEqual(copyInfoCmd?.icon, "$(copy)", "Copy Info should have copy icon");
+    });
+
+    test("View Service Logs command should have icon", () => {
+      const viewLogsCmd = packageJson.contributes!.commands!.find(
+        (c) => c.command === "lando.treeViewServiceLogs"
+      );
+      assert.ok(viewLogsCmd, "View Service Logs command should be defined");
+      assert.strictEqual(viewLogsCmd?.icon, "$(output)", "View Logs should have output icon");
     });
   });
 

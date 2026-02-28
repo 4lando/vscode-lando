@@ -23,6 +23,8 @@ export type LandoTreeItemType =
   | 'url'
   | 'toolingGroup'
   | 'tooling'
+  | 'infoGroup'
+  | 'infoItem'
   | 'loading'
   | 'noApps';
 
@@ -46,6 +48,66 @@ interface LandoServiceInfo {
   name: string;
   /** The service type (e.g., 'php', 'mysql') */
   type: string;
+  /** Whether the service is running */
+  running?: boolean;
+}
+
+/**
+ * Represents connection credentials for a database service
+ */
+interface LandoConnectionCreds {
+  /** Database username */
+  user?: string;
+  /** Database password */
+  password?: string;
+  /** Database name */
+  database?: string;
+}
+
+/**
+ * Represents connection endpoint information
+ */
+interface LandoConnectionEndpoint {
+  /** Hostname or IP address */
+  host?: string;
+  /** Port number */
+  port?: string;
+}
+
+/**
+ * Represents a copyable info item displayed in the tree
+ */
+interface LandoInfoItem {
+  /** Display label (e.g., "Host", "User", "Password") */
+  label: string;
+  /** The value to display and copy */
+  value: string;
+  /** The service this info belongs to */
+  service: string;
+  /** Category of info (for grouping) */
+  category: 'connection' | 'credentials' | 'other';
+  /** Icon to display */
+  icon?: string;
+}
+
+/**
+ * Extended service info from lando info command
+ */
+interface LandoServiceDetails {
+  /** The service name */
+  service: string;
+  /** The service type (e.g., 'php', 'mysql:8.0') */
+  type?: string;
+  /** URLs exposed by this service */
+  urls?: string[];
+  /** Database credentials (if applicable) */
+  creds?: LandoConnectionCreds;
+  /** Internal connection info (container-to-container) */
+  internal_connection?: LandoConnectionEndpoint;
+  /** External connection info (host machine access) */
+  external_connection?: LandoConnectionEndpoint;
+  /** Container hostnames */
+  hostnames?: string[];
   /** Whether the service is running */
   running?: boolean;
 }
@@ -94,6 +156,13 @@ export class LandoTreeItem extends vscode.TreeItem {
         break;
       case 'tooling':
         this.setupToolingItem();
+        break;
+      case 'infoGroup':
+        this.iconPath = new vscode.ThemeIcon('database');
+        this.description = 'Connection Info';
+        break;
+      case 'infoItem':
+        this.setupInfoItem();
         break;
       case 'loading':
         this.iconPath = new vscode.ThemeIcon('loading~spin');
@@ -183,6 +252,45 @@ export class LandoTreeItem extends vscode.TreeItem {
   }
 
   /**
+   * Sets up an info tree item (connection details, credentials, etc.)
+   */
+  private setupInfoItem(): void {
+    const info = this.data as LandoInfoItem;
+    if (!info) {
+      return;
+    }
+
+    // Choose icon based on category and label
+    let icon = 'symbol-field';
+    if (info.label.toLowerCase().includes('host')) {
+      icon = 'server';
+    } else if (info.label.toLowerCase().includes('port')) {
+      icon = 'plug';
+    } else if (info.label.toLowerCase().includes('user')) {
+      icon = 'person';
+    } else if (info.label.toLowerCase().includes('password')) {
+      icon = 'key';
+    } else if (info.label.toLowerCase().includes('database')) {
+      icon = 'database';
+    }
+
+    this.iconPath = new vscode.ThemeIcon(icon);
+    this.description = info.value;
+    this.tooltip = new vscode.MarkdownString(
+      `**${info.label}:** \`${info.value}\`\n\n` +
+      `Service: ${info.service}\n\n` +
+      `*Click to copy to clipboard*`
+    );
+    
+    // Click to copy the value
+    this.command = {
+      command: 'lando.copyInfoValue',
+      title: 'Copy Value',
+      arguments: [info.value, info.label]
+    };
+  }
+
+  /**
    * Updates the app status icon
    */
   public updateStatus(status: LandoAppStatus | undefined): void {
@@ -234,9 +342,10 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
   private statusMonitor: LandoStatusMonitor | undefined;
   private outputChannel: vscode.OutputChannel | undefined;
   
-  // Cache for services and URLs (fetched via lando info)
+  // Cache for services, URLs, and connection info (fetched via lando info)
   private servicesCache: Map<string, LandoServiceInfo[]> = new Map();
   private urlsCache: Map<string, LandoServiceUrl[]> = new Map();
+  private infoCache: Map<string, LandoInfoItem[]> = new Map();
   private fetchingInfo: Set<string> = new Set();
 
   constructor() {}
@@ -454,6 +563,40 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
         }
       })
     );
+
+    // Copy info value to clipboard (for connection details)
+    context.subscriptions.push(
+      vscode.commands.registerCommand('lando.copyInfoValue', async (value: string, label: string) => {
+        await vscode.env.clipboard.writeText(value);
+        vscode.window.showInformationMessage(`Copied ${label}: ${value}`);
+      })
+    );
+
+    // Copy info item from tree context menu
+    context.subscriptions.push(
+      vscode.commands.registerCommand('lando.treeCopyInfo', async (item: LandoTreeItem) => {
+        if (item.type === 'infoItem') {
+          const info = item.data as LandoInfoItem;
+          await vscode.env.clipboard.writeText(info.value);
+          vscode.window.showInformationMessage(`Copied ${info.label}: ${info.value}`);
+        }
+      })
+    );
+
+    // View logs for a specific service from tree
+    context.subscriptions.push(
+      vscode.commands.registerCommand('lando.treeViewServiceLogs', async (item: LandoTreeItem) => {
+        if (item.type === 'service' && item.app) {
+          const service = item.data as LandoServiceInfo;
+          const terminal = vscode.window.createTerminal({
+            name: `Lando Logs: ${service.name}`,
+            cwd: item.app.rootPath
+          });
+          terminal.sendText(`lando logs -s ${service.name} -f`);
+          terminal.show();
+        }
+      })
+    );
   }
 
   /**
@@ -499,6 +642,11 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
     // Tooling group: show tooling commands
     if (element.type === 'toolingGroup' && element.app) {
       return this.getToolingItems(element.app);
+    }
+
+    // Info group: show connection details
+    if (element.type === 'infoGroup' && element.app) {
+      return this.getInfoItems(element.app);
     }
 
     return [];
@@ -567,6 +715,15 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
       children.push(new LandoTreeItem(
         'URLs',
         'urlsGroup',
+        vscode.TreeItemCollapsibleState.Collapsed,
+        app
+      ));
+      
+      // Info group - shows database connection details, ports, etc.
+      // Only shown when app is running since we need lando info data
+      children.push(new LandoTreeItem(
+        'Info',
+        'infoGroup',
         vscode.TreeItemCollapsibleState.Collapsed,
         app
       ));
@@ -691,6 +848,37 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
   }
 
   /**
+   * Gets info items (connection details, credentials) for an app.
+   * These are extracted from lando info output for database and other services.
+   */
+  private async getInfoItems(app: LandoApp): Promise<LandoTreeItem[]> {
+    // Check cache first
+    let infoItems = this.infoCache.get(app.configPath);
+    
+    if (!infoItems) {
+      await this.fetchAppInfo(app);
+      infoItems = this.infoCache.get(app.configPath);
+    }
+
+    if (!infoItems || infoItems.length === 0) {
+      return [new LandoTreeItem(
+        'No connection info available',
+        'loading',
+        vscode.TreeItemCollapsibleState.None,
+        app
+      )];
+    }
+
+    return infoItems.map(info => new LandoTreeItem(
+      info.label,
+      'infoItem',
+      vscode.TreeItemCollapsibleState.None,
+      app,
+      info
+    ));
+  }
+
+  /**
    * Fetches app info (services and URLs) from lando info command.
    * Uses async spawn to avoid blocking the VS Code UI thread.
    */
@@ -722,6 +910,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
         this.log(`Error spawning lando info for ${app.name}: ${error}`);
         this.servicesCache.set(app.configPath, []);
         this.urlsCache.set(app.configPath, []);
+        this.infoCache.set(app.configPath, []);
         this.fetchingInfo.delete(app.configPath);
         resolve();
       });
@@ -732,20 +921,17 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
             this.log(`lando info failed for ${app.name}: exit code ${code}, stderr: ${stderr}`);
             this.servicesCache.set(app.configPath, []);
             this.urlsCache.set(app.configPath, []);
+            this.infoCache.set(app.configPath, []);
             this.fetchingInfo.delete(app.configPath);
             resolve();
             return;
           }
 
-          const infoArray = JSON.parse(stdout) as Array<{
-            service: string;
-            type?: string;
-            urls?: string[];
-            running?: boolean;
-          }>;
+          const infoArray = JSON.parse(stdout) as LandoServiceDetails[];
 
           const services: LandoServiceInfo[] = [];
           const urls: LandoServiceUrl[] = [];
+          const infoItems: LandoInfoItem[] = [];
 
           for (const info of infoArray) {
             services.push({
@@ -763,16 +949,96 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
                 });
               }
             }
+
+            // Extract connection info for database services
+            // Check if this service has credentials (typical for database services)
+            if (info.creds) {
+              const serviceName = info.service;
+              const serviceLabel = `${serviceName}`;
+              
+              if (info.creds.database) {
+                infoItems.push({
+                  label: `${serviceLabel}: Database`,
+                  value: info.creds.database,
+                  service: serviceName,
+                  category: 'credentials'
+                });
+              }
+              if (info.creds.user) {
+                infoItems.push({
+                  label: `${serviceLabel}: User`,
+                  value: info.creds.user,
+                  service: serviceName,
+                  category: 'credentials'
+                });
+              }
+              if (info.creds.password) {
+                infoItems.push({
+                  label: `${serviceLabel}: Password`,
+                  value: info.creds.password,
+                  service: serviceName,
+                  category: 'credentials'
+                });
+              }
+            }
+
+            // Extract external connection info (for connecting from host machine)
+            if (info.external_connection) {
+              const serviceName = info.service;
+              const serviceLabel = `${serviceName}`;
+              
+              if (info.external_connection.host) {
+                infoItems.push({
+                  label: `${serviceLabel}: Host (external)`,
+                  value: info.external_connection.host,
+                  service: serviceName,
+                  category: 'connection'
+                });
+              }
+              if (info.external_connection.port) {
+                infoItems.push({
+                  label: `${serviceLabel}: Port (external)`,
+                  value: info.external_connection.port,
+                  service: serviceName,
+                  category: 'connection'
+                });
+              }
+            }
+
+            // Extract internal connection info (container-to-container)
+            if (info.internal_connection) {
+              const serviceName = info.service;
+              const serviceLabel = `${serviceName}`;
+              
+              if (info.internal_connection.host) {
+                infoItems.push({
+                  label: `${serviceLabel}: Host (internal)`,
+                  value: info.internal_connection.host,
+                  service: serviceName,
+                  category: 'connection'
+                });
+              }
+              if (info.internal_connection.port) {
+                infoItems.push({
+                  label: `${serviceLabel}: Port (internal)`,
+                  value: info.internal_connection.port,
+                  service: serviceName,
+                  category: 'connection'
+                });
+              }
+            }
           }
 
           this.servicesCache.set(app.configPath, services);
           this.urlsCache.set(app.configPath, urls);
+          this.infoCache.set(app.configPath, infoItems);
           
-          this.log(`Fetched info for ${app.name}: ${services.length} services, ${urls.length} URLs`);
+          this.log(`Fetched info for ${app.name}: ${services.length} services, ${urls.length} URLs, ${infoItems.length} info items`);
         } catch (error) {
           this.log(`Error parsing lando info for ${app.name}: ${error}`);
           this.servicesCache.set(app.configPath, []);
           this.urlsCache.set(app.configPath, []);
+          this.infoCache.set(app.configPath, []);
         } finally {
           this.fetchingInfo.delete(app.configPath);
           resolve();
@@ -786,6 +1052,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
           landoProcess.kill();
           this.servicesCache.set(app.configPath, []);
           this.urlsCache.set(app.configPath, []);
+          this.infoCache.set(app.configPath, []);
           this.fetchingInfo.delete(app.configPath);
           resolve();
         }
@@ -878,6 +1145,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
   private clearCaches(): void {
     this.servicesCache.clear();
     this.urlsCache.clear();
+    this.infoCache.clear();
     this.fetchingInfo.clear();
   }
 
