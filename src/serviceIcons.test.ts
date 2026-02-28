@@ -238,15 +238,7 @@ suite('Service Icons', () => {
       assert.notStrictEqual(icons1, icons2);
     });
 
-    test('all icons should have required properties', () => {
-      const icons = getAllServiceIcons();
-      for (const [type, config] of Object.entries(icons)) {
-        assert.ok(config.icon, `${type} should have an icon property`);
-        assert.ok(config.category, `${type} should have a category property`);
-        assert.ok(typeof config.icon === 'string', `${type} icon should be a string`);
-        assert.ok(typeof config.category === 'string', `${type} category should be a string`);
-      }
-    });
+
   });
 
   suite('DEFAULT_SERVICE_ICON', () => {

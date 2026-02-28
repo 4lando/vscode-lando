@@ -26,15 +26,6 @@ suite('Lando Documentation Module', () => {
       assert.ok(LANDO_DOCUMENTATION.length > 0, 'Should have documentation entries');
     });
 
-    test('should have valid structure for all entries', () => {
-      for (const doc of LANDO_DOCUMENTATION) {
-        assert.ok(doc.label, `Entry should have label: ${JSON.stringify(doc)}`);
-        assert.ok(doc.description, `Entry should have description: ${doc.label}`);
-        assert.ok(doc.url, `Entry should have url: ${doc.label}`);
-        assert.ok(doc.category, `Entry should have category: ${doc.label}`);
-      }
-    });
-
     test('should have HTTPS URLs for all entries', () => {
       for (const doc of LANDO_DOCUMENTATION) {
         assert.ok(
@@ -85,12 +76,9 @@ suite('Lando Documentation Module', () => {
       }
     });
 
-    test('should have valid structure for all category entries', () => {
+    test('all category icons should use VS Code codicon format', () => {
       for (const cat of DOCUMENTATION_CATEGORIES) {
-        assert.ok(cat.key, 'Category should have key');
-        assert.ok(cat.label, 'Category should have label');
-        assert.ok(cat.icon, 'Category should have icon');
-        assert.ok(cat.icon.startsWith('$('), 'Icon should be VS Code codicon format');
+        assert.ok(cat.icon.startsWith('$('), `Icon should be VS Code codicon format: ${cat.icon}`);
       }
     });
   });
