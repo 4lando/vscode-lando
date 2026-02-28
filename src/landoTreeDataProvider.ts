@@ -12,7 +12,7 @@ import * as childProcess from 'child_process';
 import { LandoApp, LandoAppDetector, LandoTooling } from './landoAppDetector';
 import { LandoStatusMonitor, LandoAppStatus } from './landoStatusMonitor';
 import { generateConnectionStrings } from './connectionString';
-import { getServiceIcon, getServiceCategory } from './serviceIcons';
+import { getServiceIcon } from './serviceIcons';
 
 /**
  * Types of tree items that can be displayed
@@ -73,8 +73,8 @@ interface LandoConnectionCreds {
 interface LandoConnectionEndpoint {
   /** Hostname or IP address */
   host?: string;
-  /** Port number */
-  port?: string;
+  /** Port number - Lando returns this as a number */
+  port?: number;
 }
 
 /**
@@ -224,7 +224,7 @@ export class LandoTreeItem extends vscode.TreeItem {
     this.iconPath = new vscode.ThemeIcon(iconConfig.icon, statusColor);
     
     // Show category and type in description for better context
-    const category = getServiceCategory(service.type);
+    const category = iconConfig.category;
     this.description = service.type || category;
     
     // Build informative tooltip
@@ -1084,7 +1084,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
               if (info.external_connection.port) {
                 infoItems.push({
                   label: `${serviceLabel}: Port (external)`,
-                  value: info.external_connection.port,
+                  value: String(info.external_connection.port),
                   service: serviceName,
                   category: 'connection'
                 });
@@ -1107,7 +1107,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
               if (info.internal_connection.port) {
                 infoItems.push({
                   label: `${serviceLabel}: Port (internal)`,
-                  value: info.internal_connection.port,
+                  value: String(info.internal_connection.port),
                   service: serviceName,
                   category: 'connection'
                 });
@@ -1115,12 +1115,19 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
             }
 
             // Generate ready-to-use connection strings for database services
+            // Convert port numbers to strings for connection string generation
             const connectionStrings = generateConnectionStrings({
               serviceName: info.service,
               serviceType: info.type,
               creds: info.creds,
-              externalConnection: info.external_connection,
-              internalConnection: info.internal_connection,
+              externalConnection: info.external_connection ? {
+                host: info.external_connection.host,
+                port: info.external_connection.port !== undefined ? String(info.external_connection.port) : undefined
+              } : undefined,
+              internalConnection: info.internal_connection ? {
+                host: info.internal_connection.host,
+                port: info.internal_connection.port !== undefined ? String(info.internal_connection.port) : undefined
+              } : undefined,
             });
 
             for (const connStr of connectionStrings) {

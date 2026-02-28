@@ -63,7 +63,7 @@ const SERVICE_TYPE_ICONS: Record<string, ServiceIconConfig> = {
   'appserver': { icon: 'code', category: 'Application' },
   'node': { icon: 'symbol-event', category: 'Node.js' },
   'python': { icon: 'symbol-method', category: 'Python' },
-  'ruby': { icon: 'ruby', category: 'Ruby' },
+  'ruby': { icon: 'symbol-variable', category: 'Ruby' },
   'go': { icon: 'symbol-interface', category: 'Go' },
   'dotnet': { icon: 'symbol-class', category: '.NET' },
   'java': { icon: 'symbol-class', category: 'Java' },
