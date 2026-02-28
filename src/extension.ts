@@ -28,6 +28,10 @@ interface OriginalPhpSettings {
   debugExecutablePath?: string;
   path?: string;
   binDir?: string;
+  // Terminal environment settings for each platform
+  terminalEnvLinux?: Record<string, string | null> | undefined;
+  terminalEnvOsx?: Record<string, string | null> | undefined;
+  terminalEnvWindows?: Record<string, string | null> | undefined;
 }
 
 let originalPhpSettings: OriginalPhpSettings | undefined;
@@ -92,13 +96,6 @@ interface LandoConfig {
   cleanAppName: string;
   phpContainer: string;
   phpService: string;
-}
-
-interface ShellTaskDefinition extends vscode.TaskDefinition {
-  command?: string;
-  options?: {
-    cwd?: string;
-  };
 }
 
 /**
@@ -2357,7 +2354,7 @@ async function checkAndStartLando(
     
     if (isRunning) {
       outputChannel.appendLine("Lando app is running");
-      setupDockerMode(context, workspaceFolder, landoConfig);
+      await setupDockerMode(context, workspaceFolder, landoConfig);
       vscode.window.showInformationMessage(
         `Lando app ready (${landoConfig.appName})`
       );
@@ -2378,7 +2375,7 @@ async function checkAndStartLando(
       
       if (landoStarted) {
         outputChannel.appendLine("Lando started successfully");
-        setupDockerMode(context, workspaceFolder, landoConfig);
+        await setupDockerMode(context, workspaceFolder, landoConfig);
         vscode.window.showInformationMessage(
           `Lando app ready (${landoConfig.appName})`
         );
@@ -2404,11 +2401,11 @@ async function checkAndStartLando(
  * @param workspaceFolder - The workspace folder path
  * @param landoConfig - The parsed Lando configuration
  */
-function setupDockerMode(
+async function setupDockerMode(
   context: vscode.ExtensionContext,
   workspaceFolder: string,
   landoConfig: LandoConfig
-): void {
+): Promise<void> {
   const phpService = vscode.workspace.getConfiguration("lando").get("php.service", "appserver");
   outputChannel.appendLine(
     `Setting up Docker mode with container: ${landoConfig.cleanAppName}_${phpService}_1`
@@ -2417,14 +2414,19 @@ function setupDockerMode(
   const phpWrapperPath = getPhpWrapperPath();
   
   // Automatically enable PHP interpreter
-  overridePhpExecutablePath(phpWrapperPath, landoConfig.phpContainer, workingDir);
+  await overridePhpExecutablePath(phpWrapperPath, landoConfig.phpContainer, workingDir);
 
   // Set environment variables for the extension process
   process.env.PHP_EXECUTABLE = phpWrapperPath;
   process.env.VSCODE_LANDO_PHP_CONTAINER = landoConfig.phpService;
   process.env.VSCODE_LANDO_EXEC_CWD = workingDir;
 
-  // Hook into terminal creation to set up Docker PHP
+  // Configure terminal environment so that all terminals (including task terminals)
+  // have the PHP wrapper in PATH and the required environment variables.
+  // This ensures PHP commands in VS Code tasks are properly redirected to Lando.
+  await configureTerminalEnvironment(context, landoConfig, workingDir);
+
+  // Hook into terminal creation to set up Docker PHP (for existing terminals and fallback)
   const terminalCreateListener = vscode.window.onDidOpenTerminal((terminal) => {
     // Give terminal a moment to initialize
     setTimeout(() => {
@@ -2443,37 +2445,80 @@ function setupDockerMode(
 
   context.subscriptions.push(terminalCreateListener);
 
-  // Hook into task execution to replace PHP commands with Docker
-  const taskStartListener = vscode.tasks.onDidStartTask((taskEvent) => {
-    const task = taskEvent.execution.task;
-    if (task.definition && task.definition.type === "shell") {
-      const shellTask = task.definition as ShellTaskDefinition;
-      if (shellTask.command && shellTask.command.includes("php")) {
-        const originalCommand = shellTask.command;
-        if (!originalCommand.includes("lando") && !originalCommand.includes(phpWrapperPath)) {
-          const newCommand = originalCommand.replace(
-            /^php\b/,
-            `VSCODE_LANDO_PHP_CONTAINER='${landoConfig.phpContainer}' VSCODE_LANDO_EXEC_CWD='${workingDir}' ${phpWrapperPath}`
-          );
-          shellTask.command = newCommand;
-          if (shellTask.options) {
-            shellTask.options.cwd = workspaceFolder;
-          } else {
-            shellTask.options = { cwd: workspaceFolder };
-          }
-          outputChannel.appendLine(
-            `Replaced PHP command: ${originalCommand} -> ${newCommand}`
-          );
-        }
-      }
-    }
-  });
-  
-  context.subscriptions.push(taskStartListener);
-
   outputChannel.appendLine(`PHP wrapper path: ${phpWrapperPath}`);
   outputChannel.appendLine(`Container name: ${landoConfig.phpContainer}`);
   outputChannel.appendLine(`Working directory: ${workingDir}`);
+}
+
+/**
+ * Configures terminal environment settings to enable PHP command interception.
+ * This modifies VS Code's terminal.integrated.env.* settings to:
+ * 1. Prepend the extension's bin directory to PATH (so `php` resolves to our wrapper)
+ * 2. Set VSCODE_LANDO_PHP_CONTAINER and VSCODE_LANDO_EXEC_CWD environment variables
+ * 
+ * This approach ensures ALL terminals (including task terminals) automatically use
+ * the Lando PHP wrapper without requiring manual setup or command modification.
+ * 
+ * @param context - The extension context (provides extensionPath)
+ * @param landoConfig - The parsed Lando configuration
+ * @param workingDir - The working directory inside the container
+ */
+async function configureTerminalEnvironment(
+  context: vscode.ExtensionContext,
+  landoConfig: LandoConfig,
+  workingDir: string
+): Promise<void> {
+  const binDir = path.join(context.extensionPath, "bin");
+  const terminalConfig = vscode.workspace.getConfiguration("terminal.integrated");
+  
+  // Store original settings for restoration
+  if (!originalPhpSettings) {
+    originalPhpSettings = {};
+  }
+  
+  // Helper function to configure environment for a specific platform
+  const configureForPlatform = async (
+    platform: "linux" | "osx" | "windows",
+    pathSeparator: string,
+    pathEnvVar: string
+  ) => {
+    const envKey = `env.${platform}` as const;
+    const currentEnv = terminalConfig.get<Record<string, string | null>>(envKey) || {};
+    
+    // Store original settings
+    if (platform === "linux") {
+      originalPhpSettings!.terminalEnvLinux = { ...currentEnv };
+    } else if (platform === "osx") {
+      originalPhpSettings!.terminalEnvOsx = { ...currentEnv };
+    } else {
+      originalPhpSettings!.terminalEnvWindows = { ...currentEnv };
+    }
+    
+    // Build new environment with our additions
+    const newEnv: Record<string, string | null> = { ...currentEnv };
+    
+    // Prepend our bin directory to PATH (only if not already present)
+    const currentPath = currentEnv[pathEnvVar] || `\${env:${pathEnvVar}}`;
+    const alreadyHasBinDir = currentPath.startsWith(binDir + pathSeparator) || currentPath === binDir;
+    newEnv[pathEnvVar] = alreadyHasBinDir ? currentPath : `${binDir}${pathSeparator}${currentPath}`;
+    
+    // Set Lando environment variables
+    newEnv["VSCODE_LANDO_PHP_CONTAINER"] = landoConfig.phpContainer;
+    newEnv["VSCODE_LANDO_EXEC_CWD"] = workingDir;
+    
+    await terminalConfig.update(envKey, newEnv, vscode.ConfigurationTarget.Workspace);
+    outputChannel.appendLine(`Configured terminal environment for ${platform}: PATH prepended with ${binDir}`);
+  };
+  
+  // Configure for all platforms (VS Code will use the appropriate one)
+  await configureForPlatform("linux", ":", "PATH");
+  await configureForPlatform("osx", ":", "PATH");
+  await configureForPlatform("windows", ";", "Path");
+  
+  // Store binDir for cleanup
+  originalPhpSettings.binDir = binDir;
+  
+  outputChannel.appendLine("Terminal environment configured for PHP interception");
 }
 
 /**
@@ -2503,22 +2548,52 @@ async function restoreOriginalPhpSettings(): Promise<void> {
       vscode.ConfigurationTarget.Workspace
     );
     
-    // Restore original PATH if it was modified
-    if (originalPhpSettings.path !== undefined && originalPhpSettings.binDir !== undefined) {
-      const currentPath = process.env.PATH || "";
-      const binDir = originalPhpSettings.binDir;
-      
-      // Remove our bin directory from PATH
-      const pathParts = currentPath.split(path.delimiter);
-      const filteredPathParts = pathParts.filter(part => part !== binDir);
-      process.env.PATH = filteredPathParts.join(path.delimiter);
-      
-      outputChannel.appendLine(`Removed ${binDir} from PATH`);
-    }
+    // Restore terminal environment settings
+    await restoreTerminalEnvironment();
     
     outputChannel.appendLine("Original PHP settings restored");
     originalPhpSettings = undefined;
   }
+}
+
+/**
+ * Restores the original terminal environment settings that were modified
+ * by configureTerminalEnvironment()
+ */
+async function restoreTerminalEnvironment(): Promise<void> {
+  if (!originalPhpSettings) {
+    return;
+  }
+  
+  const terminalConfig = vscode.workspace.getConfiguration("terminal.integrated");
+  
+  // Restore each platform's environment settings
+  if (originalPhpSettings.terminalEnvLinux !== undefined) {
+    // If the original value was empty/undefined, we need to set it to undefined to remove it
+    const value = Object.keys(originalPhpSettings.terminalEnvLinux).length === 0 
+      ? undefined 
+      : originalPhpSettings.terminalEnvLinux;
+    await terminalConfig.update("env.linux", value, vscode.ConfigurationTarget.Workspace);
+    outputChannel.appendLine("Restored terminal.integrated.env.linux");
+  }
+  
+  if (originalPhpSettings.terminalEnvOsx !== undefined) {
+    const value = Object.keys(originalPhpSettings.terminalEnvOsx).length === 0 
+      ? undefined 
+      : originalPhpSettings.terminalEnvOsx;
+    await terminalConfig.update("env.osx", value, vscode.ConfigurationTarget.Workspace);
+    outputChannel.appendLine("Restored terminal.integrated.env.osx");
+  }
+  
+  if (originalPhpSettings.terminalEnvWindows !== undefined) {
+    const value = Object.keys(originalPhpSettings.terminalEnvWindows).length === 0 
+      ? undefined 
+      : originalPhpSettings.terminalEnvWindows;
+    await terminalConfig.update("env.windows", value, vscode.ConfigurationTarget.Workspace);
+    outputChannel.appendLine("Restored terminal.integrated.env.windows");
+  }
+  
+  outputChannel.appendLine("Terminal environment settings restored");
 }
 
 /**

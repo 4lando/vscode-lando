@@ -153,10 +153,6 @@ Configure the extension behavior in your VS Code settings:
 }
 ```
 
-## Known Issues
-
-- PHP command interception only works for shell-type tasks with direct PHP commands
-
 ## Contributing
 
 This is an open-source project. Contributions are welcome!
