@@ -12,6 +12,7 @@ import {
   DOCUMENTATION_CATEGORIES,
   getContextAwareDocumentation,
 } from "./landoDocumentation";
+import { runInitWizard } from "./landoInit";
 
 /** Line ending for terminal output */
 const CRLF = "\r\n";
@@ -1890,6 +1891,17 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       // Run the command in terminal
       await runLandoToolingCommand(activeLandoApp, selected.tooling.name, args);
+    })
+  );
+
+  // Command to create a new Lando app using the initialization wizard
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.createLandoApp', async () => {
+      const result = await runInitWizard(outputChannel);
+      if (result) {
+        // Trigger a rescan to pick up the new app
+        await landoAppDetector?.rescan();
+      }
     })
   );
 }

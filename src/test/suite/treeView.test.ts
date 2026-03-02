@@ -180,7 +180,7 @@ suite("Lando TreeView Integration Test Suite", () => {
         (w) => w.view === "landoExplorer"
       );
       assert.ok(welcomeView, "landoExplorer welcome view should be defined");
-      assert.ok(welcomeView?.contents.includes(".lando.yml"), "Welcome should mention .lando.yml");
+      assert.ok(welcomeView?.contents.includes("Create New Lando App"), "Welcome should have Create New App button");
       assert.ok(welcomeView?.contents.includes("Documentation"), "Welcome should link to documentation");
     });
 
@@ -194,7 +194,20 @@ suite("Lando TreeView Integration Test Suite", () => {
       );
       assert.ok(refreshButton, "Refresh button should be in view title");
       assert.ok(refreshButton?.when?.includes("view == landoExplorer"), "Should be scoped to landoExplorer view");
-      assert.strictEqual(refreshButton?.group, "navigation", "Should be in navigation group");
+      assert.ok(refreshButton?.group?.startsWith("navigation"), "Should be in navigation group");
+    });
+
+    test("Should have create app button in view title", () => {
+      assert.ok(packageJson.contributes?.menus, "menus should be defined");
+      const viewTitleMenu = packageJson.contributes!.menus!["view/title"];
+      assert.ok(viewTitleMenu, "view/title menu should be defined");
+      
+      const createButton = viewTitleMenu.find(
+        (m) => m.command === "extension.createLandoApp"
+      );
+      assert.ok(createButton, "Create button should be in view title");
+      assert.ok(createButton?.when?.includes("view == landoExplorer"), "Should be scoped to landoExplorer view");
+      assert.ok(createButton?.group?.startsWith("navigation"), "Should be in navigation group");
     });
 
     test("Should have context menu items for tree items", () => {

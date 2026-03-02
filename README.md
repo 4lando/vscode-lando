@@ -8,6 +8,18 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 
 ### ✅ Current Features
 
+#### 🪄 **App Creation Wizard**
+- **No CLI Required**: Create new Lando environments without touching the command line
+- **Guided Setup**: Step-by-step wizard walks you through configuration
+- **Recipe Selection**: Choose from 15+ pre-configured recipes:
+  - **CMS**: Drupal 10/11, WordPress, Backdrop, Joomla
+  - **Frameworks**: Laravel, Symfony
+  - **Stacks**: LAMP, LEMP, MEAN, Node.js, Python, Ruby, Go, .NET
+  - **Custom**: Start with a blank config and build your own
+- **Configuration Options**: Select PHP version, web server, and database
+- **Smart Defaults**: Recommended settings for each recipe type
+- **Instant Start**: Option to start your new app immediately after creation
+
 #### 🗂️ **Lando Explorer Sidebar**
 - **Activity Bar Integration**: Lando icon in the VS Code Activity Bar for instant access
 - **Visual App Management**: See all your Lando apps at a glance with running/stopped status indicators
@@ -90,7 +102,6 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 
 ### 🚀 Future Roadmap
 - Automatic Xdebug configuration
-- App creation wizard (GUI for `lando init`)
 - Integration with hosting platforms (Pantheon, Acquia, etc.)
 
 ## Installation
@@ -117,6 +128,7 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 ### Manual Commands
 Access these commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 
+- **"Lando: Create New App"** - Launch the app creation wizard to set up a new Lando environment
 - **"Run Lando Command"** - Execute any Lando command interactively
 - **"Lando: Start App"** - Start the active Lando app
 - **"Lando: Stop App"** - Stop the active Lando app
