@@ -234,6 +234,10 @@ export class LandoAppStateMachine implements vscode.Disposable {
    */
   canTransition(appId: string, toState: LandoAppState): boolean {
     const current = this.getState(appId);
+    // Same state is always a valid "transition" (no-op)
+    if (current.state === toState) {
+      return true;
+    }
     return VALID_TRANSITIONS[current.state]?.includes(toState) ?? false;
   }
 
@@ -353,10 +357,37 @@ export class LandoAppStateMachine implements vscode.Disposable {
       return;
     }
 
+    // Don't override busy states unless the poll result matches the expected outcome
+    // This prevents polling from interrupting in-progress operations (which take 30+ seconds)
+    if (isBusy(current.state)) {
+      const expectedOutcome = this.getExpectedOutcome(current.state);
+      if (targetState !== expectedOutcome) {
+        return;
+      }
+    }
+
     // Try to transition - this handles all the validation
     // For transitional states (Starting -> Running, Stopping -> Stopped, etc.)
     // the transition will succeed based on VALID_TRANSITIONS
     this.transition(appId, targetState);
+  }
+
+  /**
+   * Get the expected terminal state for a busy/transitional state
+   * @param state - The busy state
+   * @returns The expected terminal state
+   */
+  private getExpectedOutcome(state: LandoAppState): LandoAppState {
+    switch (state) {
+      case LandoAppState.Starting:
+      case LandoAppState.Rebuilding:
+        return LandoAppState.Running;
+      case LandoAppState.Stopping:
+      case LandoAppState.Destroying:
+        return LandoAppState.Stopped;
+      default:
+        return state;
+    }
   }
 
   /**
