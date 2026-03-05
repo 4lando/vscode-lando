@@ -358,10 +358,11 @@ export class LandoAppStateMachine implements vscode.Disposable {
     }
 
     // Don't override busy states unless the poll result matches the expected outcome
+    // or the transition is explicitly valid (e.g., Stopping -> Running for restart)
     // This prevents polling from interrupting in-progress operations (which take 30+ seconds)
     if (isBusy(current.state)) {
       const expectedOutcome = this.getExpectedOutcome(current.state);
-      if (targetState !== expectedOutcome) {
+      if (targetState !== expectedOutcome && !this.canTransition(appId, targetState)) {
         return;
       }
     }
