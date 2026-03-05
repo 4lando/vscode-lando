@@ -1,5 +1,7 @@
 import * as assert from "assert";
 import { suite, test } from "mocha";
+import { LANDO_CORE_COMMANDS } from "./helpers/lando";
+import { LandoServiceUrl } from "./types";
 
 /**
  * Tests for the Lando TreeView Data Provider module.
@@ -23,12 +25,6 @@ type LandoTreeItemType =
   | 'infoItem'
   | 'loading'
   | 'noApps';
-
-interface LandoServiceUrl {
-  service: string;
-  url: string;
-  primary: boolean;
-}
 
 interface LandoServiceInfo {
   name: string;
@@ -87,18 +83,8 @@ interface LandoServiceDetails {
 }
 
 /**
- * Core Lando commands that should be filtered out from tooling
- * Mirrors the logic in landoTreeDataProvider.ts
- */
-const LANDO_CORE_COMMANDS = new Set([
-  'config', 'destroy', 'exec', 'info', 'init', 'list',
-  'logs', 'poweroff', 'rebuild', 'restart', 'start',
-  'stop', 'update', 'version', 'share', 'ssh',
-  'db-export', 'db-import'
-]);
-
-/**
  * Checks if a command is a core Lando command (not tooling)
+ * Uses the exported LANDO_CORE_COMMANDS from helpers/lando.ts
  */
 function isCoreCommand(commandName: string): boolean {
   return LANDO_CORE_COMMANDS.has(commandName);

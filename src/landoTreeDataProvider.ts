@@ -20,6 +20,8 @@ import {
 } from './landoStatusMonitor';
 import { generateConnectionStrings } from './connectionString';
 import { getServiceIcon } from './serviceIcons';
+import { LandoServiceUrl } from './types';
+import { LANDO_CORE_COMMANDS } from './helpers/lando';
 
 /**
  * Types of tree items that can be displayed
@@ -37,18 +39,6 @@ export type LandoTreeItemType =
   | 'connectionString'
   | 'loading'
   | 'noApps';
-
-/**
- * Represents a URL exposed by a Lando service
- */
-interface LandoServiceUrl {
-  /** The service name (e.g., 'appserver', 'database') */
-  service: string;
-  /** The full URL */
-  url: string;
-  /** Whether this is the primary URL for the service */
-  primary: boolean;
-}
 
 /**
  * Represents a Lando service with runtime information
@@ -1243,13 +1233,6 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
 
         try {
           // Parse the output to extract commands
-          const coreCommands = new Set([
-            'config', 'destroy', 'exec', 'info', 'init', 'list',
-            'logs', 'poweroff', 'rebuild', 'restart', 'start',
-            'stop', 'update', 'version', 'share', 'ssh',
-            'db-export', 'db-import'
-          ]);
-
           const lines = stdout.split('\n');
           let inCommandsSection = false;
 
@@ -1269,7 +1252,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
             const match = line.match(/^\s+lando\s+(\S+)(?:\s+\[.*?\])?\s+(.*?)\s*$/);
             if (match) {
               const [, commandName, description] = match;
-              if (!coreCommands.has(commandName)) {
+              if (!LANDO_CORE_COMMANDS.has(commandName)) {
                 tooling.push({
                   name: commandName,
                   description: description || undefined,
