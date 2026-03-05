@@ -74,6 +74,8 @@ const VALID_TRANSITIONS: Record<LandoAppState, LandoAppState[]> = {
   [LandoAppState.Stopped]: [
     LandoAppState.Starting,
     LandoAppState.Running, // Poll detects external start
+    LandoAppState.Rebuilding,
+    LandoAppState.Destroying,
     LandoAppState.Error,
   ],
   [LandoAppState.Starting]: [

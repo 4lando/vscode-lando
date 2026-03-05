@@ -1005,6 +1005,8 @@ function updateLandoAppsStatusBar(): void {
   
   if (appCount === 0) {
     vscode.commands.executeCommand('setContext', 'lando:appRunning', false);
+    vscode.commands.executeCommand('setContext', 'lando:appBusy', false);
+    vscode.commands.executeCommand('setContext', 'lando:appState', undefined);
     landoAppsStatusBarItem.hide();
     return;
   }

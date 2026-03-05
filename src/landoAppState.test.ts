@@ -214,14 +214,22 @@ suite("LandoAppState Test Suite", () => {
         );
       });
 
-      test("Cannot rebuild a stopped app", () => {
+      test("Can rebuild a stopped app", () => {
         stateMachine.updateFromPoll(testAppId, false);
-        assert.strictEqual(stateMachine.markRebuilding(testAppId), false);
+        assert.strictEqual(stateMachine.markRebuilding(testAppId), true);
+        assert.strictEqual(
+          stateMachine.getState(testAppId).state,
+          LandoAppState.Rebuilding
+        );
       });
 
-      test("Cannot destroy a stopped app", () => {
+      test("Can destroy a stopped app", () => {
         stateMachine.updateFromPoll(testAppId, false);
-        assert.strictEqual(stateMachine.markDestroying(testAppId), false);
+        assert.strictEqual(stateMachine.markDestroying(testAppId), true);
+        assert.strictEqual(
+          stateMachine.getState(testAppId).state,
+          LandoAppState.Destroying
+        );
       });
     });
 

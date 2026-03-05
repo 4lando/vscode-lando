@@ -280,12 +280,12 @@
         {
           "command": "extension.rebuildLandoApp",
           "group": "1_lifecycle@4",
-          "when": "lando:hasActiveApp && lando:appRunning && !lando:appBusy"
+          "when": "lando:hasActiveApp && !lando:appBusy"
         },
         {
           "command": "extension.destroyLandoApp",
           "group": "1_lifecycle@5",
-          "when": "lando:hasActiveApp && lando:appRunning && !lando:appBusy"
+          "when": "lando:hasActiveApp && !lando:appBusy"
         },
         {
           "command": "extension.powerOffLando",
