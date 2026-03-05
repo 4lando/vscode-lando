@@ -29,13 +29,12 @@ export function registerPhpCommands(
   landoConfig: LandoConfig,
   outputChannel: vscode.OutputChannel
 ): void {
-  const workingDir = vscode.workspace.getConfiguration("lando").get("appMount", "/app");
-
   // Command to enable Lando PHP interpreter
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "extension.enablePhpInterpreter",
       async () => {
+        const workingDir = vscode.workspace.getConfiguration("lando").get("appMount", "/app");
         const phpWrapperPath = getPhpWrapperPath(outputChannel);
         
         try {
@@ -76,6 +75,7 @@ export function registerPhpCommands(
   // Command to set up PHP alias in terminal
   context.subscriptions.push(
     vscode.commands.registerCommand("extension.setPhpEnvironment", () => {
+      const workingDir = vscode.workspace.getConfiguration("lando").get("appMount", "/app");
       const terminal = vscode.window.activeTerminal;
       const phpWrapperPath = getPhpWrapperPath(outputChannel);
       
@@ -133,6 +133,7 @@ export function registerPhpCommands(
   // Command to refresh PHP configuration
   context.subscriptions.push(
     vscode.commands.registerCommand("extension.refreshPhpConfig", async () => {
+      const workingDir = vscode.workspace.getConfiguration("lando").get("appMount", "/app");
       const phpWrapperPath = getPhpWrapperPath(outputChannel);
       await overridePhpExecutablePath(phpWrapperPath, landoConfig.phpContainer, workingDir, outputChannel);
       vscode.window.showInformationMessage("PHP configuration refreshed");
@@ -142,6 +143,7 @@ export function registerPhpCommands(
   // Command to test PHP wrapper
   context.subscriptions.push(
     vscode.commands.registerCommand("extension.testPhpWrapper", () => {
+      const workingDir = vscode.workspace.getConfiguration("lando").get("appMount", "/app");
       const phpWrapperPath = getPhpWrapperPath(outputChannel);
       const terminal = vscode.window.createTerminal("PHP Test");
       terminal.sendText(`cd "${workspaceFolder}"`);
