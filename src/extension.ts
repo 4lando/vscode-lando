@@ -5,7 +5,13 @@ import { activateShellDecorations } from "./shellDecorations";
 import { activateLandofileLanguageFeatures } from "./landofileLanguageFeatures";
 import { registerYamlReferenceProvider } from "./yamlReferenceProvider";
 import { LandoAppDetector, LandoApp, LandoTooling } from "./landoAppDetector";
-import { LandoStatusMonitor } from "./landoStatusMonitor";
+import { 
+  LandoStatusMonitor, 
+  LandoAppState,
+  isStateRunning,
+  isStateBusy,
+  getStateLabel,
+} from "./landoStatusMonitor";
 import { LandoTreeDataProvider } from "./landoTreeDataProvider";
 import { 
   LANDO_DOCUMENTATION, 
@@ -1006,21 +1012,33 @@ function updateLandoAppsStatusBar(): void {
   if (activeLandoApp) {
     // Get status from the status monitor
     const status = landoStatusMonitor?.getStatus(activeLandoApp);
-    const isRunning = status?.running ?? false;
+    const appState = status?.state ?? LandoAppState.Unknown;
+    const isRunning = isStateRunning(appState);
+    const isBusy = isStateBusy(appState);
     
-    // Set running context for 'when' clauses in menus
+    // Set context for 'when' clauses in menus
     vscode.commands.executeCommand('setContext', 'lando:appRunning', isRunning);
+    vscode.commands.executeCommand('setContext', 'lando:appBusy', isBusy);
+    vscode.commands.executeCommand('setContext', 'lando:appState', appState);
     
-    // Use different icons for running vs stopped
-    const icon = isRunning ? '$(debug-start)' : '$(debug-stop)';
-    const statusText = isRunning ? 'Running' : 'Stopped';
+    // Use different icons for different states
+    let icon = '$(debug-stop)';
+    if (isRunning) {
+      icon = '$(debug-start)';
+    } else if (isBusy) {
+      icon = '$(sync~spin)';
+    }
+    
+    const statusText = getStateLabel(appState);
     
     landoAppsStatusBarItem.text = `${icon} ${activeLandoApp.name}`;
     
     // Set color based on status
     landoAppsStatusBarItem.backgroundColor = isRunning 
       ? undefined 
-      : new vscode.ThemeColor('statusBarItem.warningBackground');
+      : isBusy
+        ? new vscode.ThemeColor('statusBarItem.prominentBackground')
+        : new vscode.ThemeColor('statusBarItem.warningBackground');
     
     // Build tooltip with status information
     let tooltip = `Lando App: ${activeLandoApp.name}\n`;
@@ -1080,10 +1098,12 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
       
       if (activeLandoApp) {
         const status = landoStatusMonitor?.getStatus(activeLandoApp);
-        const isRunning = status?.running ?? false;
+        const appState = status?.state ?? LandoAppState.Unknown;
+        const isRunning = isStateRunning(appState);
+        const isBusy = isStateBusy(appState);
         
         // Show contextual actions based on status
-        if (isRunning) {
+        if (isRunning && !isBusy) {
           items.push({
             label: '$(link-external) Open in Browser',
             description: `Open ${activeLandoApp.name} URL`,
@@ -1262,7 +1282,7 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       if (activeLandoApp) {
         const status = landoStatusMonitor.getStatus(activeLandoApp);
-        const statusText = status?.running ? 'running' : 'stopped';
+        const statusText = getStateLabel(status?.state ?? LandoAppState.Unknown);
         vscode.window.showInformationMessage(
           `${activeLandoApp.name} is ${statusText}`
         );
@@ -1277,6 +1297,18 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         vscode.window.showErrorMessage('No active Lando app selected');
         return;
       }
+
+      // Check if we can start (prevent conflicting operations)
+      if (landoStatusMonitor && !landoStatusMonitor.canTransition(activeLandoApp, LandoAppState.Starting)) {
+        const currentState = landoStatusMonitor.getState(activeLandoApp);
+        vscode.window.showWarningMessage(
+          `Cannot start: ${activeLandoApp.name} is currently ${getStateLabel(currentState).toLowerCase()}`
+        );
+        return;
+      }
+
+      // Mark as starting - this updates the UI immediately
+      landoStatusMonitor?.markStarting(activeLandoApp);
 
       const notification = vscode.window.showInformationMessage(
         `Starting ${activeLandoApp.name}... This may take a few minutes.`,
@@ -1297,9 +1329,11 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       if (success) {
         vscode.window.showInformationMessage(`${activeLandoApp.name} started successfully`);
-        // Refresh the status
+        // Refresh the status - this will transition to Running state
         await landoStatusMonitor?.refresh();
       } else {
+        // Mark error state
+        landoStatusMonitor?.markError(activeLandoApp, 'Start command failed');
         vscode.window.showErrorMessage(`Failed to start ${activeLandoApp.name}`);
       }
     })
@@ -1312,6 +1346,18 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         vscode.window.showErrorMessage('No active Lando app selected');
         return;
       }
+
+      // Check if we can stop (prevent conflicting operations)
+      if (landoStatusMonitor && !landoStatusMonitor.canTransition(activeLandoApp, LandoAppState.Stopping)) {
+        const currentState = landoStatusMonitor.getState(activeLandoApp);
+        vscode.window.showWarningMessage(
+          `Cannot stop: ${activeLandoApp.name} is currently ${getStateLabel(currentState).toLowerCase()}`
+        );
+        return;
+      }
+
+      // Mark as stopping - this updates the UI immediately
+      landoStatusMonitor?.markStopping(activeLandoApp);
 
       const notification = vscode.window.showInformationMessage(
         `Stopping ${activeLandoApp.name}...`,
@@ -1332,9 +1378,11 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       if (success) {
         vscode.window.showInformationMessage(`${activeLandoApp.name} stopped successfully`);
-        // Refresh the status
+        // Refresh the status - this will transition to Stopped state
         await landoStatusMonitor?.refresh();
       } else {
+        // Mark error state
+        landoStatusMonitor?.markError(activeLandoApp, 'Stop command failed');
         vscode.window.showErrorMessage(`Failed to stop ${activeLandoApp.name}`);
       }
     })
@@ -1347,6 +1395,18 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         vscode.window.showErrorMessage('No active Lando app selected');
         return;
       }
+
+      // Check if we can restart (treat as stopping - it's a compound operation)
+      if (landoStatusMonitor && !landoStatusMonitor.canTransition(activeLandoApp, LandoAppState.Stopping)) {
+        const currentState = landoStatusMonitor.getState(activeLandoApp);
+        vscode.window.showWarningMessage(
+          `Cannot restart: ${activeLandoApp.name} is currently ${getStateLabel(currentState).toLowerCase()}`
+        );
+        return;
+      }
+
+      // Mark as stopping for UI (restart = stop + start)
+      landoStatusMonitor?.markStopping(activeLandoApp);
 
       const notification = vscode.window.showInformationMessage(
         `Restarting ${activeLandoApp.name}... This may take a few minutes.`,
@@ -1367,9 +1427,11 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       if (success) {
         vscode.window.showInformationMessage(`${activeLandoApp.name} restarted successfully`);
-        // Refresh the status
+        // Refresh the status - this will transition to Running state
         await landoStatusMonitor?.refresh();
       } else {
+        // Mark error state
+        landoStatusMonitor?.markError(activeLandoApp, 'Restart command failed');
         vscode.window.showErrorMessage(`Failed to restart ${activeLandoApp.name}`);
       }
     })
@@ -1380,6 +1442,15 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('extension.rebuildLandoApp', async () => {
       if (!activeLandoApp) {
         vscode.window.showErrorMessage('No active Lando app selected');
+        return;
+      }
+
+      // Check if we can rebuild (prevent conflicting operations)
+      if (landoStatusMonitor && !landoStatusMonitor.canTransition(activeLandoApp, LandoAppState.Rebuilding)) {
+        const currentState = landoStatusMonitor.getState(activeLandoApp);
+        vscode.window.showWarningMessage(
+          `Cannot rebuild: ${activeLandoApp.name} is currently ${getStateLabel(currentState).toLowerCase()}`
+        );
         return;
       }
 
@@ -1394,6 +1465,9 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
       if (confirm !== 'Rebuild') {
         return;
       }
+
+      // Mark as rebuilding - this updates the UI immediately
+      landoStatusMonitor?.markRebuilding(activeLandoApp);
 
       const notification = vscode.window.showInformationMessage(
         `Rebuilding ${activeLandoApp.name}... This may take several minutes.`,
@@ -1414,11 +1488,13 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       if (success) {
         vscode.window.showInformationMessage(`${activeLandoApp.name} rebuilt successfully`);
-        // Refresh the status
+        // Refresh the status - this will transition to Running state
         await landoStatusMonitor?.refresh();
         // Check and reload PHP plugins after rebuild
         await checkAndReloadPhpPlugins();
       } else {
+        // Mark error state
+        landoStatusMonitor?.markError(activeLandoApp, 'Rebuild command failed');
         vscode.window.showErrorMessage(`Failed to rebuild ${activeLandoApp.name}`);
       }
     })
@@ -1429,6 +1505,15 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('extension.destroyLandoApp', async () => {
       if (!activeLandoApp) {
         vscode.window.showErrorMessage('No active Lando app selected');
+        return;
+      }
+
+      // Check if we can destroy (prevent conflicting operations)
+      if (landoStatusMonitor && !landoStatusMonitor.canTransition(activeLandoApp, LandoAppState.Destroying)) {
+        const currentState = landoStatusMonitor.getState(activeLandoApp);
+        vscode.window.showWarningMessage(
+          `Cannot destroy: ${activeLandoApp.name} is currently ${getStateLabel(currentState).toLowerCase()}`
+        );
         return;
       }
 
@@ -1451,6 +1536,7 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
       // Capture app name and root path early to prevent TOCTOU race condition
       const appName = activeLandoApp.name;
       const appRootPath = activeLandoApp.rootPath;
+      const appForState = activeLandoApp; // Capture reference for state machine
       const typedName = await vscode.window.showInputBox({
         prompt: `Type the app name "${appName}" to confirm destruction`,
         placeHolder: appName,
@@ -1465,6 +1551,9 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
       if (typedName !== appName) {
         return;
       }
+
+      // Mark as destroying - this updates the UI immediately
+      landoStatusMonitor?.markDestroying(appForState);
 
       const notification = vscode.window.showInformationMessage(
         `Destroying ${appName}...`,
@@ -1488,6 +1577,8 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         // Refresh the status - app will now appear as stopped
         await landoStatusMonitor?.refresh();
       } else {
+        // Mark error state
+        landoStatusMonitor?.markError(appForState, 'Destroy command failed');
         vscode.window.showErrorMessage(`Failed to destroy ${appName}`);
       }
     })
@@ -1546,7 +1637,16 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       // Check if the app is running
       const status = landoStatusMonitor?.getStatus(activeLandoApp);
-      if (!status?.running) {
+      const appState = status?.state ?? LandoAppState.Unknown;
+      
+      if (isStateBusy(appState)) {
+        vscode.window.showWarningMessage(
+          `${activeLandoApp.name} is ${getStateLabel(appState).toLowerCase()}, please wait...`
+        );
+        return;
+      }
+      
+      if (!isStateRunning(appState)) {
         const action = await vscode.window.showWarningMessage(
           `${activeLandoApp.name} is not running. Start it first?`,
           'Start',
@@ -1626,7 +1726,16 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       // Check if the app is running
       const status = landoStatusMonitor?.getStatus(activeLandoApp);
-      if (!status?.running) {
+      const appState = status?.state ?? LandoAppState.Unknown;
+      
+      if (isStateBusy(appState)) {
+        vscode.window.showWarningMessage(
+          `${activeLandoApp.name} is ${getStateLabel(appState).toLowerCase()}, please wait...`
+        );
+        return;
+      }
+      
+      if (!isStateRunning(appState)) {
         const action = await vscode.window.showWarningMessage(
           `${activeLandoApp.name} is not running. Start it first?`,
           'Start',
@@ -1682,7 +1791,16 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       // Check if the app is running
       const status = landoStatusMonitor?.getStatus(activeLandoApp);
-      if (!status?.running) {
+      const appState = status?.state ?? LandoAppState.Unknown;
+      
+      if (isStateBusy(appState)) {
+        vscode.window.showWarningMessage(
+          `${activeLandoApp.name} is ${getStateLabel(appState).toLowerCase()}, please wait...`
+        );
+        return;
+      }
+      
+      if (!isStateRunning(appState)) {
         const action = await vscode.window.showWarningMessage(
           `${activeLandoApp.name} is not running. Start it first?`,
           'Start',
@@ -1739,7 +1857,16 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
 
       // Check if the app is running
       const status = landoStatusMonitor?.getStatus(activeLandoApp);
-      if (!status?.running) {
+      const appState = status?.state ?? LandoAppState.Unknown;
+      
+      if (isStateBusy(appState)) {
+        vscode.window.showWarningMessage(
+          `${activeLandoApp.name} is ${getStateLabel(appState).toLowerCase()}, please wait...`
+        );
+        return;
+      }
+      
+      if (!isStateRunning(appState)) {
         const action = await vscode.window.showWarningMessage(
           `${activeLandoApp.name} is not running. Start it first?`,
           'Start',

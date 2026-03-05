@@ -1,6 +1,11 @@
 import * as assert from "assert";
 import { suite, test, afterEach } from "mocha";
-import { LandoStatusMonitor, LandoContainer } from "./landoStatusMonitor";
+import { 
+  LandoStatusMonitor, 
+  LandoContainer, 
+  LandoAppState,
+  isStateRunning,
+} from "./landoStatusMonitor";
 import { LandoApp } from "./landoAppDetector";
 import * as vscode from "vscode";
 
@@ -121,7 +126,7 @@ suite("LandoStatusMonitor Test Suite", () => {
       const status = monitor.getStatus(app);
       
       assert.ok(status, "Status should be available");
-      assert.strictEqual(status!.running, true, "App should be running");
+      assert.strictEqual(status!.state, LandoAppState.Running, "App should be running");
       assert.strictEqual(status!.runningContainers, 2, "Should have 2 running containers");
       assert.strictEqual(status!.totalContainers, 2, "Should have 2 total containers");
     });
@@ -143,7 +148,7 @@ suite("LandoStatusMonitor Test Suite", () => {
       const status = monitor.getStatus(app);
       
       assert.ok(status, "Status should be available");
-      assert.strictEqual(status!.running, false, "App should not be running");
+      assert.strictEqual(status!.state, LandoAppState.Stopped, "App should not be running");
       assert.strictEqual(status!.runningContainers, 0, "Should have 0 running containers");
       assert.strictEqual(status!.totalContainers, 2, "Should have 2 total containers");
     });
@@ -165,7 +170,7 @@ suite("LandoStatusMonitor Test Suite", () => {
       const status = monitor.getStatus(app);
       
       assert.ok(status, "Status should be available");
-      assert.strictEqual(status!.running, true, "App should be running if any container is running");
+      assert.strictEqual(status!.state, LandoAppState.Running, "App should be running if any container is running");
       assert.strictEqual(status!.runningContainers, 1, "Should have 1 running container");
       assert.strictEqual(status!.totalContainers, 2, "Should have 2 total containers");
     });
@@ -183,7 +188,7 @@ suite("LandoStatusMonitor Test Suite", () => {
       const status = monitor.getStatus(app);
       
       assert.ok(status, "Status should be available");
-      assert.strictEqual(status!.running, false, "App should not be running with no containers");
+      assert.strictEqual(status!.state, LandoAppState.Stopped, "App should not be running with no containers");
       assert.strictEqual(status!.runningContainers, 0, "Should have 0 running containers");
       assert.strictEqual(status!.totalContainers, 0, "Should have 0 total containers");
     });
@@ -206,7 +211,7 @@ suite("LandoStatusMonitor Test Suite", () => {
       const status = monitor.getStatus(app);
       
       assert.ok(status, "Status should be available");
-      assert.strictEqual(status!.running, true, "App should be running");
+      assert.strictEqual(status!.state, LandoAppState.Running, "App should be running");
       assert.strictEqual(status!.runningContainers, 2, "Should have 2 running containers");
       assert.strictEqual(status!.totalContainers, 2, "Should have 2 total containers");
     });
@@ -229,7 +234,7 @@ suite("LandoStatusMonitor Test Suite", () => {
       const status = monitor.getStatus(app);
       
       assert.ok(status, "Status should be available");
-      assert.strictEqual(status!.running, true, "App should be running");
+      assert.strictEqual(status!.state, LandoAppState.Running, "App should be running");
       assert.strictEqual(status!.runningContainers, 1, "Should have 1 running container");
       assert.strictEqual(status!.totalContainers, 2, "Should have 2 total containers");
     });
@@ -258,8 +263,8 @@ suite("LandoStatusMonitor Test Suite", () => {
       
       assert.ok(status1, "Status for app1 should be available");
       assert.ok(status2, "Status for app2 should be available");
-      assert.strictEqual(status1!.running, true, "App1 should be running");
-      assert.strictEqual(status2!.running, false, "App2 should not be running");
+      assert.strictEqual(status1!.state, LandoAppState.Running, "App1 should be running");
+      assert.strictEqual(status2!.state, LandoAppState.Stopped, "App2 should not be running");
     });
 
     test("Should remove status when app is removed", async () => {
@@ -289,8 +294,8 @@ suite("LandoStatusMonitor Test Suite", () => {
     test("Should emit status changed event when app starts", async () => {
       const app = createMockApp("myapp");
       let eventFired = false;
-      let capturedWasRunning: boolean | undefined;
-      let capturedIsRunning: boolean | undefined;
+      let capturedPreviousState: LandoAppState | undefined;
+      let capturedCurrentState: LandoAppState | undefined;
 
       const { fetcher, setContainers } = createMutableFetcher();
       
@@ -300,8 +305,8 @@ suite("LandoStatusMonitor Test Suite", () => {
 
       monitor.onDidChangeStatus(event => {
         eventFired = true;
-        capturedWasRunning = event.wasRunning;
-        capturedIsRunning = event.status.running;
+        capturedPreviousState = event.previousState;
+        capturedCurrentState = event.status.state;
       });
 
       // First call: app is stopped
@@ -313,8 +318,8 @@ suite("LandoStatusMonitor Test Suite", () => {
 
       // Reset event tracking
       eventFired = false;
-      capturedWasRunning = undefined;
-      capturedIsRunning = undefined;
+      capturedPreviousState = undefined;
+      capturedCurrentState = undefined;
 
       // Second call: app is running
       setContainers([
@@ -323,15 +328,15 @@ suite("LandoStatusMonitor Test Suite", () => {
       await monitor.refresh();
 
       assert.strictEqual(eventFired, true, "Event should be fired");
-      assert.strictEqual(capturedWasRunning, false, "Was not running before");
-      assert.strictEqual(capturedIsRunning, true, "Is running now");
+      assert.strictEqual(capturedPreviousState, LandoAppState.Stopped, "Was stopped before");
+      assert.strictEqual(capturedCurrentState, LandoAppState.Running, "Is running now");
     });
 
     test("Should emit status changed event when app stops", async () => {
       const app = createMockApp("myapp");
       let eventFired = false;
-      let capturedWasRunning: boolean | undefined;
-      let capturedIsRunning: boolean | undefined;
+      let capturedPreviousState: LandoAppState | undefined;
+      let capturedCurrentState: LandoAppState | undefined;
 
       const { fetcher, setContainers } = createMutableFetcher();
       
@@ -341,8 +346,8 @@ suite("LandoStatusMonitor Test Suite", () => {
 
       monitor.onDidChangeStatus(event => {
         eventFired = true;
-        capturedWasRunning = event.wasRunning;
-        capturedIsRunning = event.status.running;
+        capturedPreviousState = event.previousState;
+        capturedCurrentState = event.status.state;
       });
 
       // First call: app is running
@@ -354,8 +359,8 @@ suite("LandoStatusMonitor Test Suite", () => {
 
       // Reset event tracking
       eventFired = false;
-      capturedWasRunning = undefined;
-      capturedIsRunning = undefined;
+      capturedPreviousState = undefined;
+      capturedCurrentState = undefined;
 
       // Second call: app is stopped
       setContainers([
@@ -364,8 +369,8 @@ suite("LandoStatusMonitor Test Suite", () => {
       await monitor.refresh();
 
       assert.strictEqual(eventFired, true, "Event should be fired");
-      assert.strictEqual(capturedWasRunning, true, "Was running before");
-      assert.strictEqual(capturedIsRunning, false, "Is not running now");
+      assert.strictEqual(capturedPreviousState, LandoAppState.Running, "Was running before");
+      assert.strictEqual(capturedCurrentState, LandoAppState.Stopped, "Is not running now");
     });
 
     test("Should not emit event when status unchanged", async () => {
