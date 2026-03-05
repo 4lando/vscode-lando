@@ -1058,6 +1058,8 @@ function updateLandoAppsStatusBar(): void {
   } else {
     // No active app selected
     vscode.commands.executeCommand('setContext', 'lando:appRunning', false);
+    vscode.commands.executeCommand('setContext', 'lando:appBusy', false);
+    vscode.commands.executeCommand('setContext', 'lando:appState', undefined);
     landoAppsStatusBarItem.text = `$(server) ${appCount} Lando app${appCount > 1 ? 's' : ''}`;
     landoAppsStatusBarItem.tooltip = `${appCount} Lando app${appCount > 1 ? 's' : ''} detected - Click to select`;
     landoAppsStatusBarItem.backgroundColor = undefined;
@@ -1456,9 +1458,12 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         return;
       }
 
+      // Capture app reference before await to prevent TOCTOU
+      const appToRebuild = activeLandoApp;
+
       // Warn user about destructive action
       const confirm = await vscode.window.showWarningMessage(
-        `Rebuild will destroy and recreate ${activeLandoApp.name}'s containers. ` +
+        `Rebuild will destroy and recreate ${appToRebuild.name}'s containers. ` +
         `Local data in containers will be lost. Continue?`,
         { modal: true },
         'Rebuild'
@@ -1468,36 +1473,45 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
         return;
       }
 
+      // Re-check guard after await - state may have changed
+      if (landoStatusMonitor && !landoStatusMonitor.canTransition(appToRebuild, LandoAppState.Rebuilding)) {
+        const currentState = landoStatusMonitor.getState(appToRebuild);
+        vscode.window.showWarningMessage(
+          `Cannot rebuild: ${appToRebuild.name} is currently ${getStateLabel(currentState).toLowerCase()}`
+        );
+        return;
+      }
+
       // Mark as rebuilding - this updates the UI immediately
-      landoStatusMonitor?.markRebuilding(activeLandoApp);
+      landoStatusMonitor?.markRebuilding(appToRebuild);
 
       const notification = vscode.window.showInformationMessage(
-        `Rebuilding ${activeLandoApp.name}... This may take several minutes.`,
+        `Rebuilding ${appToRebuild.name}... This may take several minutes.`,
         'Cancel'
       );
 
       const success = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: `Rebuilding ${activeLandoApp.name}...`,
+          title: `Rebuilding ${appToRebuild.name}...`,
           cancellable: false
         },
         async () => {
-          const result = await rebuildLando(activeLandoApp!.rootPath, notification);
+          const result = await rebuildLando(appToRebuild.rootPath, notification);
           return result;
         }
       );
 
       if (success) {
-        vscode.window.showInformationMessage(`${activeLandoApp.name} rebuilt successfully`);
+        vscode.window.showInformationMessage(`${appToRebuild.name} rebuilt successfully`);
         // Refresh the status - this will transition to Running state
         await landoStatusMonitor?.refresh();
         // Check and reload PHP plugins after rebuild
         await checkAndReloadPhpPlugins();
       } else {
         // Mark error state
-        landoStatusMonitor?.markError(activeLandoApp, 'Rebuild command failed');
-        vscode.window.showErrorMessage(`Failed to rebuild ${activeLandoApp.name}`);
+        landoStatusMonitor?.markError(appToRebuild, 'Rebuild command failed');
+        vscode.window.showErrorMessage(`Failed to rebuild ${appToRebuild.name}`);
       }
     })
   );
@@ -1551,6 +1565,15 @@ function registerAppDetectionCommands(context: vscode.ExtensionContext): void {
       });
 
       if (typedName !== appName) {
+        return;
+      }
+
+      // Re-check guard after awaits - state may have changed
+      if (landoStatusMonitor && !landoStatusMonitor.canTransition(appForState, LandoAppState.Destroying)) {
+        const currentState = landoStatusMonitor.getState(appForState);
+        vscode.window.showWarningMessage(
+          `Cannot destroy: ${appName} is currently ${getStateLabel(currentState).toLowerCase()}`
+        );
         return;
       }
 
