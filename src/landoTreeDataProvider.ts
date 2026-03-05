@@ -20,6 +20,7 @@ import {
 } from './landoStatusMonitor';
 import { generateConnectionStrings } from './connectionString';
 import { getServiceIcon } from './serviceIcons';
+import { LandoServiceUrl } from './types';
 
 /**
  * Types of tree items that can be displayed
@@ -37,18 +38,6 @@ export type LandoTreeItemType =
   | 'connectionString'
   | 'loading'
   | 'noApps';
-
-/**
- * Represents a URL exposed by a Lando service
- */
-interface LandoServiceUrl {
-  /** The service name (e.g., 'appserver', 'database') */
-  service: string;
-  /** The full URL */
-  url: string;
-  /** Whether this is the primary URL for the service */
-  primary: boolean;
-}
 
 /**
  * Represents a Lando service with runtime information
