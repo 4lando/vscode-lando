@@ -10,7 +10,14 @@
 import * as vscode from 'vscode';
 import * as childProcess from 'child_process';
 import { LandoApp, LandoAppDetector, LandoTooling } from './landoAppDetector';
-import { LandoStatusMonitor, LandoAppStatus } from './landoStatusMonitor';
+import { 
+  LandoStatusMonitor, 
+  LandoAppStatus, 
+  LandoAppState,
+  isStateRunning,
+  isStateBusy,
+  getStateLabel,
+} from './landoStatusMonitor';
 import { generateConnectionStrings } from './connectionString';
 import { getServiceIcon } from './serviceIcons';
 
@@ -358,29 +365,61 @@ export class LandoTreeItem extends vscode.TreeItem {
   }
 
   /**
-   * Updates the app status icon
+   * Updates the app status icon based on the app's state
    */
   public updateStatus(status: LandoAppStatus | undefined): void {
     if (this.type !== 'app') {
       return;
     }
 
-    const isRunning = status?.running ?? false;
-    this.iconPath = new vscode.ThemeIcon(
-      isRunning ? 'vm-running' : 'vm-outline',
-      isRunning 
-        ? new vscode.ThemeColor('testing.iconPassed')
-        : new vscode.ThemeColor('testing.iconSkipped')
-    );
+    const appState = status?.state ?? LandoAppState.Unknown;
+    this.iconPath = this.getStateIcon(appState);
 
     if (status) {
-      const statusText = isRunning ? 'Running' : 'Stopped';
+      const statusText = getStateLabel(appState);
       this.tooltip = new vscode.MarkdownString(
         `**${this.app?.name}**\n\n` +
         `Status: ${statusText} (${status.runningContainers}/${status.totalContainers} containers)\n\n` +
         `Recipe: ${this.app?.recipe || 'custom'}\n\n` +
         `Path: \`${this.app?.rootPath}\``
       );
+    }
+  }
+
+  /**
+   * Gets the appropriate icon for a given app state
+   */
+  private getStateIcon(state: LandoAppState): vscode.ThemeIcon {
+    switch (state) {
+      case LandoAppState.Running:
+        return new vscode.ThemeIcon(
+          'vm-running',
+          new vscode.ThemeColor('testing.iconPassed')
+        );
+      case LandoAppState.Stopped:
+        return new vscode.ThemeIcon(
+          'vm-outline',
+          new vscode.ThemeColor('testing.iconSkipped')
+        );
+      case LandoAppState.Starting:
+      case LandoAppState.Stopping:
+      case LandoAppState.Rebuilding:
+      case LandoAppState.Destroying:
+        return new vscode.ThemeIcon(
+          'sync~spin',
+          new vscode.ThemeColor('charts.yellow')
+        );
+      case LandoAppState.Error:
+        return new vscode.ThemeIcon(
+          'error',
+          new vscode.ThemeColor('testing.iconFailed')
+        );
+      case LandoAppState.Unknown:
+      default:
+        return new vscode.ThemeIcon(
+          'question',
+          new vscode.ThemeColor('testing.iconSkipped')
+        );
     }
   }
 }
@@ -797,7 +836,8 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
 
     // URLs group (only show if app is running)
     const status = this.statusMonitor?.getStatus(app);
-    if (status?.running) {
+    const appState = status?.state ?? LandoAppState.Unknown;
+    if (isStateRunning(appState)) {
       children.push(new LandoTreeItem(
         'URLs',
         'urlsGroup',
