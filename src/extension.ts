@@ -133,6 +133,8 @@ function updateLandoAppsStatusBar(): void {
   
   if (appCount === 0) {
     vscode.commands.executeCommand('setContext', 'lando:appRunning', false);
+    vscode.commands.executeCommand('setContext', 'lando:appBusy', false);
+    vscode.commands.executeCommand('setContext', 'lando:appState', undefined);
     landoAppsStatusBarItem.hide();
     return;
   }
@@ -184,6 +186,8 @@ function updateLandoAppsStatusBar(): void {
   } else {
     // No active app selected
     vscode.commands.executeCommand('setContext', 'lando:appRunning', false);
+    vscode.commands.executeCommand('setContext', 'lando:appBusy', false);
+    vscode.commands.executeCommand('setContext', 'lando:appState', undefined);
     landoAppsStatusBarItem.text = `$(server) ${appCount} Lando app${appCount > 1 ? 's' : ''}`;
     landoAppsStatusBarItem.tooltip = `${appCount} Lando app${appCount > 1 ? 's' : ''} detected - Click to select`;
     landoAppsStatusBarItem.backgroundColor = undefined;

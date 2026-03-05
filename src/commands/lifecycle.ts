@@ -218,6 +218,15 @@ export function registerLifecycleCommands(
         return;
       }
 
+      // Re-check guard after await - state may have changed
+      if (!statusMonitor.canTransition(activeLandoApp, LandoAppState.Rebuilding)) {
+        const currentState = statusMonitor.getState(activeLandoApp);
+        vscode.window.showWarningMessage(
+          `Cannot rebuild: ${activeLandoApp.name} is currently ${getStateLabel(currentState).toLowerCase()}`
+        );
+        return;
+      }
+
       // Mark as rebuilding - this updates the UI immediately
       statusMonitor.markRebuilding(activeLandoApp);
 
@@ -303,6 +312,15 @@ export function registerLifecycleCommands(
       });
 
       if (typedName !== appName) {
+        return;
+      }
+
+      // Re-check guard after awaits - state may have changed
+      if (!statusMonitor.canTransition(appForState, LandoAppState.Destroying)) {
+        const currentState = statusMonitor.getState(appForState);
+        vscode.window.showWarningMessage(
+          `Cannot destroy: ${appName} is currently ${getStateLabel(currentState).toLowerCase()}`
+        );
         return;
       }
 
