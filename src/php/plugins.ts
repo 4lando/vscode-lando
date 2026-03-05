@@ -53,11 +53,11 @@ export const COMMON_PHP_PLUGINS: PhpPlugin[] = [
 ];
 
 /**
- * Checks for active PHP plugins and returns their status
- * @returns Array of PHP plugins with their active status
- */
+* Checks for active PHP plugins and returns their status
+* @returns Array of PHP plugins with their active status
+*/
 export function checkPhpPlugins(): PhpPlugin[] {
-  const plugins = [...COMMON_PHP_PLUGINS];
+  const plugins = COMMON_PHP_PLUGINS.map(p => ({...p}));
   
   for (const plugin of plugins) {
     const extension = vscode.extensions.getExtension(plugin.id);

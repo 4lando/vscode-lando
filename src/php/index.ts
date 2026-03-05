@@ -23,21 +23,7 @@ export { configureTerminalEnvironment, restoreTerminalEnvironment } from "./term
 let originalPhpSettings: OriginalPhpSettings | undefined;
 
 /**
- * Gets the current original PHP settings
- */
-export function getOriginalPhpSettings(): OriginalPhpSettings | undefined {
-  return originalPhpSettings;
-}
-
-/**
- * Sets the original PHP settings (for testing or external use)
- */
-export function setOriginalPhpSettings(settings: OriginalPhpSettings | undefined): void {
-  originalPhpSettings = settings;
-}
-
-/**
- * Gets the path to the PHP wrapper script
+* Gets the path to the PHP wrapper script
  * @param outputChannel - Output channel for logging
  * @returns The path to the appropriate PHP wrapper script
  */
