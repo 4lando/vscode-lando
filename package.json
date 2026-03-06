@@ -564,7 +564,9 @@
     "prewatch": "rm -rf out",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run lint && npm run build",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "code": "npm run build && code --extensionDevelopmentPath=\"$PWD\"",
+    "cursor": "npm run build && cursor --extensionDevelopmentPath=\"$PWD\""
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
