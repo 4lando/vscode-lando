@@ -229,7 +229,6 @@ export class LandoTreeItem extends vscode.TreeItem {
     }
 
     this.iconPath = new vscode.ThemeIcon('link-external');
-    this.description = urlData.service;
     this.tooltip = `Open ${urlData.url} in browser`;
     this.command = {
       command: 'lando.openUrlDirect',
