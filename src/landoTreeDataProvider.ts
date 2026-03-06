@@ -459,6 +459,7 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
 
     // Listen for status changes
     statusMonitor.onDidUpdateStatuses(() => {
+      this.clearCaches();
       this._onDidChangeTreeData.fire();
     });
 
