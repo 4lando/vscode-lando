@@ -458,8 +458,13 @@ export class LandoTreeDataProvider implements vscode.TreeDataProvider<LandoTreeI
     });
 
     // Listen for status changes
-    statusMonitor.onDidUpdateStatuses(() => {
+    statusMonitor.onDidChangeStatus(() => {
       this.clearCaches();
+      this._onDidChangeTreeData.fire();
+    });
+
+    // Listen for status updates (no cache clearing, just refresh UI)
+    statusMonitor.onDidUpdateStatuses(() => {
       this._onDidChangeTreeData.fire();
     });
 
