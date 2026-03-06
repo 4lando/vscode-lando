@@ -198,7 +198,7 @@ export function generateConnectionStrings(input: ConnectionStringInput): Connect
     );
     
     results.push({
-      label: `${input.serviceName}: Connection URL (external)`,
+      label: `Connection URL (external)`,
       connectionString,
       type: 'external',
       protocol,
@@ -218,7 +218,7 @@ export function generateConnectionStrings(input: ConnectionStringInput): Connect
     );
     
     results.push({
-      label: `${input.serviceName}: Connection URL (internal)`,
+      label: `Connection URL (internal)`,
       connectionString,
       type: 'internal',
       protocol,
