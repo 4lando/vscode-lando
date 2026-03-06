@@ -23,21 +23,20 @@ Seamlessly integrate [Lando](https://lando.dev) local development environments w
 #### 🗂️ **Lando Explorer Sidebar**
 - **Activity Bar Integration**: Lando icon in the VS Code Activity Bar for instant access
 - **Visual App Management**: See all your Lando apps at a glance with running/stopped status indicators
-- **Hierarchical Tree View**:
+- **Per-Service Tree View**: Each service is a self-contained node with its own URLs and connection details nested underneath -- no hunting through separate groups to find what belongs where
   - **Apps**: Root-level display of all detected Lando apps with status icons
-  - **Services**: Expandable list of services with type-specific icons and running state
+  - **Services**: Shown directly under each app with type-specific icons and running state
     - Visual icons identify service types at a glance: database, web server, cache, mail, search, and more
     - Color-coded status: green for running, gray for stopped
+    - Expand a service to see its URLs and connection info
     - Hover for detailed tooltip with service category and status
-  - **URLs**: Clickable URLs that open directly in your browser (shown when app is running)
-  - **Info**: Database connection details (host, port, user, password) with one-click copy
+  - **URLs**: Nested under their parent service -- click to open in browser, right-click to copy
+  - **Connection Info**: Database credentials and endpoints nested under their database service -- click any item to copy
+    - External connection info (host/port for connecting from your host machine)
+    - Internal connection info (for container-to-container connections)
+    - Database credentials (user, password, database name)
+    - **One-Click Connection Strings**: Ready-to-use database URLs (e.g., `mysql://user:pass@localhost:32769/db`) -- click to copy and paste directly into DBeaver, TablePlus, or your application config
   - **Tooling**: One-click access to tooling commands (drush, composer, npm, artisan, etc.)
-- **Connection Info at a Glance**: See database credentials and connection details without touching the CLI
-  - External connection info (host/port for connecting from your host machine)
-  - Internal connection info (for container-to-container connections)
-  - Database credentials (user, password, database name)
-  - **One-Click Connection Strings**: Ready-to-use database URLs (e.g., `mysql://user:pass@localhost:32769/db`) - click to copy and paste directly into DBeaver, TablePlus, or your application config
-  - Click any info item to copy its value to clipboard
 - **Service Actions**: Right-click on services to SSH in or view logs for that specific service
 - **Inline Actions**: Hover over items to see action buttons (Start, Stop, SSH, Copy URL, Copy Info)
 - **Context Menus**: Right-click for full action menus on apps, services, URLs, and info items

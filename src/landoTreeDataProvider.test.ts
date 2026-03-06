@@ -15,14 +15,12 @@ import { LandoServiceUrl } from "./types";
  */
 type LandoTreeItemType = 
   | 'app'
-  | 'servicesGroup'
   | 'service'
-  | 'urlsGroup'
   | 'url'
   | 'toolingGroup'
   | 'tooling'
-  | 'infoGroup'
   | 'infoItem'
+  | 'connectionString'
   | 'loading'
   | 'noApps';
 
@@ -194,7 +192,7 @@ function parseInfoFromLandoInfo(infoArray: LandoServiceDetails[]): LandoInfoItem
     if (info.creds) {
       if (info.creds.database) {
         infoItems.push({
-          label: `${serviceName}: Database`,
+          label: 'Database',
           value: info.creds.database,
           service: serviceName,
           category: 'credentials'
@@ -202,7 +200,7 @@ function parseInfoFromLandoInfo(infoArray: LandoServiceDetails[]): LandoInfoItem
       }
       if (info.creds.user) {
         infoItems.push({
-          label: `${serviceName}: User`,
+          label: 'User',
           value: info.creds.user,
           service: serviceName,
           category: 'credentials'
@@ -210,7 +208,7 @@ function parseInfoFromLandoInfo(infoArray: LandoServiceDetails[]): LandoInfoItem
       }
       if (info.creds.password) {
         infoItems.push({
-          label: `${serviceName}: Password`,
+          label: 'Password',
           value: info.creds.password,
           service: serviceName,
           category: 'credentials'
@@ -222,7 +220,7 @@ function parseInfoFromLandoInfo(infoArray: LandoServiceDetails[]): LandoInfoItem
     if (info.external_connection) {
       if (info.external_connection.host) {
         infoItems.push({
-          label: `${serviceName}: Host (external)`,
+          label: 'Host (external)',
           value: info.external_connection.host,
           service: serviceName,
           category: 'connection'
@@ -230,7 +228,7 @@ function parseInfoFromLandoInfo(infoArray: LandoServiceDetails[]): LandoInfoItem
       }
       if (info.external_connection.port) {
         infoItems.push({
-          label: `${serviceName}: Port (external)`,
+          label: 'Port (external)',
           value: info.external_connection.port,
           service: serviceName,
           category: 'connection'
@@ -242,7 +240,7 @@ function parseInfoFromLandoInfo(infoArray: LandoServiceDetails[]): LandoInfoItem
     if (info.internal_connection) {
       if (info.internal_connection.host) {
         infoItems.push({
-          label: `${serviceName}: Host (internal)`,
+          label: 'Host (internal)',
           value: info.internal_connection.host,
           service: serviceName,
           category: 'connection'
@@ -250,7 +248,7 @@ function parseInfoFromLandoInfo(infoArray: LandoServiceDetails[]): LandoInfoItem
       }
       if (info.internal_connection.port) {
         infoItems.push({
-          label: `${serviceName}: Port (internal)`,
+          label: 'Port (internal)',
           value: info.internal_connection.port,
           service: serviceName,
           category: 'connection'
@@ -260,6 +258,32 @@ function parseInfoFromLandoInfo(infoArray: LandoServiceDetails[]): LandoInfoItem
   }
 
   return infoItems;
+}
+
+/**
+ * Filters info items for a specific service (mirrors getServiceChildren logic)
+ */
+function getServiceChildItems(
+  serviceName: string,
+  urls: LandoServiceUrl[],
+  infoItems: LandoInfoItem[]
+): { serviceUrls: LandoServiceUrl[], serviceInfo: LandoInfoItem[] } {
+  return {
+    serviceUrls: urls.filter(u => u.service === serviceName),
+    serviceInfo: infoItems.filter(i => i.service === serviceName),
+  };
+}
+
+/**
+ * Determines if a service should be expandable (has URLs or info children)
+ */
+function serviceHasChildren(
+  serviceName: string,
+  urls: LandoServiceUrl[],
+  infoItems: LandoInfoItem[]
+): boolean {
+  return urls.some(u => u.service === serviceName)
+    || infoItems.some(i => i.service === serviceName);
 }
 
 /**
@@ -289,22 +313,18 @@ function getIconForType(type: LandoTreeItemType): string {
   switch (type) {
     case 'app':
       return 'package';
-    case 'servicesGroup':
-      return 'server';
     case 'service':
       return 'circle-filled';
-    case 'urlsGroup':
-      return 'globe';
     case 'url':
       return 'link-external';
     case 'toolingGroup':
       return 'tools';
     case 'tooling':
       return 'terminal';
-    case 'infoGroup':
-      return 'database';
     case 'infoItem':
       return 'symbol-field';
+    case 'connectionString':
+      return 'link';
     case 'loading':
       return 'loading~spin';
     case 'noApps':
@@ -532,12 +552,12 @@ without commands section`;
   suite("Icon Selection", () => {
     test("Should return correct icons for each item type", () => {
       assert.strictEqual(getIconForType('app'), 'package');
-      assert.strictEqual(getIconForType('servicesGroup'), 'server');
       assert.strictEqual(getIconForType('service'), 'circle-filled');
-      assert.strictEqual(getIconForType('urlsGroup'), 'globe');
       assert.strictEqual(getIconForType('url'), 'link-external');
       assert.strictEqual(getIconForType('toolingGroup'), 'tools');
       assert.strictEqual(getIconForType('tooling'), 'terminal');
+      assert.strictEqual(getIconForType('infoItem'), 'symbol-field');
+      assert.strictEqual(getIconForType('connectionString'), 'link');
       assert.strictEqual(getIconForType('loading'), 'loading~spin');
       assert.strictEqual(getIconForType('noApps'), 'info');
     });
@@ -638,9 +658,9 @@ without commands section`;
       const infoItems = parseInfoFromLandoInfo(infoArray);
 
       assert.strictEqual(infoItems.length, 3);
-      assert.ok(infoItems.some(i => i.label === 'database: Database' && i.value === 'drupal10'));
-      assert.ok(infoItems.some(i => i.label === 'database: User' && i.value === 'drupal10'));
-      assert.ok(infoItems.some(i => i.label === 'database: Password' && i.value === 'drupal10'));
+      assert.ok(infoItems.some(i => i.label === 'Database' && i.value === 'drupal10'));
+      assert.ok(infoItems.some(i => i.label === 'User' && i.value === 'drupal10'));
+      assert.ok(infoItems.some(i => i.label === 'Password' && i.value === 'drupal10'));
     });
 
     test("Should parse external connection info from lando info output", () => {
@@ -658,8 +678,8 @@ without commands section`;
       const infoItems = parseInfoFromLandoInfo(infoArray);
 
       assert.strictEqual(infoItems.length, 2);
-      assert.ok(infoItems.some(i => i.label === 'database: Host (external)' && i.value === 'localhost'));
-      assert.ok(infoItems.some(i => i.label === 'database: Port (external)' && i.value === '32769'));
+      assert.ok(infoItems.some(i => i.label === 'Host (external)' && i.value === 'localhost'));
+      assert.ok(infoItems.some(i => i.label === 'Port (external)' && i.value === '32769'));
     });
 
     test("Should parse internal connection info from lando info output", () => {
@@ -677,8 +697,8 @@ without commands section`;
       const infoItems = parseInfoFromLandoInfo(infoArray);
 
       assert.strictEqual(infoItems.length, 2);
-      assert.ok(infoItems.some(i => i.label === 'database: Host (internal)' && i.value === 'database'));
-      assert.ok(infoItems.some(i => i.label === 'database: Port (internal)' && i.value === '3306'));
+      assert.ok(infoItems.some(i => i.label === 'Host (internal)' && i.value === 'database'));
+      assert.ok(infoItems.some(i => i.label === 'Port (internal)' && i.value === '3306'));
     });
 
     test("Should parse complete connection info for database service", () => {
@@ -772,7 +792,7 @@ without commands section`;
       const infoItems = parseInfoFromLandoInfo(infoArray);
 
       assert.strictEqual(infoItems.length, 1);
-      assert.strictEqual(infoItems[0].label, 'database: Database');
+      assert.strictEqual(infoItems[0].label, 'Database');
       assert.strictEqual(infoItems[0].value, 'mydb');
     });
 
@@ -784,29 +804,28 @@ without commands section`;
 
   suite("Info Item Icon Selection", () => {
     test("Should return server icon for host labels", () => {
-      assert.strictEqual(getIconForInfoItem('database: Host (external)'), 'server');
-      assert.strictEqual(getIconForInfoItem('database: Host (internal)'), 'server');
+      assert.strictEqual(getIconForInfoItem('Host (external)'), 'server');
+      assert.strictEqual(getIconForInfoItem('Host (internal)'), 'server');
       assert.strictEqual(getIconForInfoItem('Host'), 'server');
     });
 
     test("Should return plug icon for port labels", () => {
-      assert.strictEqual(getIconForInfoItem('database: Port (external)'), 'plug');
-      assert.strictEqual(getIconForInfoItem('database: Port (internal)'), 'plug');
+      assert.strictEqual(getIconForInfoItem('Port (external)'), 'plug');
+      assert.strictEqual(getIconForInfoItem('Port (internal)'), 'plug');
       assert.strictEqual(getIconForInfoItem('Port'), 'plug');
     });
 
     test("Should return person icon for user labels", () => {
-      assert.strictEqual(getIconForInfoItem('database: User'), 'person');
+      assert.strictEqual(getIconForInfoItem('User'), 'person');
       assert.strictEqual(getIconForInfoItem('Username'), 'person');
     });
 
     test("Should return key icon for password labels", () => {
-      assert.strictEqual(getIconForInfoItem('database: Password'), 'key');
       assert.strictEqual(getIconForInfoItem('Password'), 'key');
     });
 
     test("Should return database icon for database labels", () => {
-      assert.strictEqual(getIconForInfoItem('database: Database'), 'database');
+      assert.strictEqual(getIconForInfoItem('Database'), 'database');
       assert.strictEqual(getIconForInfoItem('Database Name'), 'database');
     });
 
@@ -816,13 +835,74 @@ without commands section`;
     });
   });
 
-  suite("Info Group Tree Item Type", () => {
-    test("Should return correct icon for infoGroup type", () => {
-      assert.strictEqual(getIconForType('infoGroup'), 'database');
+  suite("Service Children Filtering", () => {
+    test("Should filter URLs for a specific service", () => {
+      const urls: LandoServiceUrl[] = [
+        { service: 'appserver', url: 'https://app.lndo.site', primary: true },
+        { service: 'appserver', url: 'http://app.lndo.site', primary: false },
+        { service: 'mailhog', url: 'http://mail.lndo.site', primary: true },
+      ];
+      const infoItems: LandoInfoItem[] = [];
+
+      const { serviceUrls } = getServiceChildItems('appserver', urls, infoItems);
+      assert.strictEqual(serviceUrls.length, 2);
+      assert.ok(serviceUrls.every(u => u.service === 'appserver'));
     });
 
-    test("Should return correct icon for infoItem type", () => {
-      assert.strictEqual(getIconForType('infoItem'), 'symbol-field');
+    test("Should filter info items for a specific service", () => {
+      const urls: LandoServiceUrl[] = [];
+      const infoItems: LandoInfoItem[] = [
+        { label: 'Database', value: 'drupal', service: 'database', category: 'credentials' },
+        { label: 'User', value: 'root', service: 'database', category: 'credentials' },
+        { label: 'Host (internal)', value: 'cache', service: 'cache', category: 'connection' },
+      ];
+
+      const { serviceInfo } = getServiceChildItems('database', urls, infoItems);
+      assert.strictEqual(serviceInfo.length, 2);
+      assert.ok(serviceInfo.every(i => i.service === 'database'));
+    });
+
+    test("Should return empty arrays for service with no children", () => {
+      const urls: LandoServiceUrl[] = [
+        { service: 'appserver', url: 'https://app.lndo.site', primary: true },
+      ];
+      const infoItems: LandoInfoItem[] = [
+        { label: 'Database', value: 'drupal', service: 'database', category: 'credentials' },
+      ];
+
+      const { serviceUrls, serviceInfo } = getServiceChildItems('cache', urls, infoItems);
+      assert.strictEqual(serviceUrls.length, 0);
+      assert.strictEqual(serviceInfo.length, 0);
+    });
+
+    test("Should correctly determine if a service has children", () => {
+      const urls: LandoServiceUrl[] = [
+        { service: 'appserver', url: 'https://app.lndo.site', primary: true },
+      ];
+      const infoItems: LandoInfoItem[] = [
+        { label: 'Database', value: 'drupal', service: 'database', category: 'credentials' },
+      ];
+
+      // appserver has URLs
+      assert.strictEqual(serviceHasChildren('appserver', urls, infoItems), true);
+      // database has info items
+      assert.strictEqual(serviceHasChildren('database', urls, infoItems), true);
+      // cache has neither
+      assert.strictEqual(serviceHasChildren('cache', urls, infoItems), false);
+    });
+
+    test("Should combine URLs and info for a service with both", () => {
+      const urls: LandoServiceUrl[] = [
+        { service: 'appserver', url: 'https://app.lndo.site', primary: true },
+      ];
+      const infoItems: LandoInfoItem[] = [
+        { label: 'Host (external)', value: 'localhost', service: 'appserver', category: 'connection' },
+      ];
+
+      const { serviceUrls, serviceInfo } = getServiceChildItems('appserver', urls, infoItems);
+      assert.strictEqual(serviceUrls.length, 1);
+      assert.strictEqual(serviceInfo.length, 1);
+      assert.strictEqual(serviceHasChildren('appserver', urls, infoItems), true);
     });
   });
 });
